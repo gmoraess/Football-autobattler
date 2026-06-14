@@ -41,11 +41,12 @@ Só um time tem a bola por vez, então cada turno é uma **disputa de posse**:
 - **Sem a bola (defesa):** **roubar a bola** · **defender o chute** · **forçar o erro do adversário** · (falhar → sofrer).
 - **Transversal:** se a bola **bate em um jogador**, ele **perde STA** — e isso pode ser o foco de uma build (vencer por nocaute de stamina em vez de gols).
 
-### 1.5 Condições de vitória (⚠️ interpretação a confirmar)
-- **STA é uma segunda barra de vida.** Cai um pouco por turno (cansaço) **e** quando a bola acerta o jogador.
-- Se a **STA de um time zera → ele perde na hora** (nocaute), independente do placar.
-- Ao fim dos **9 turnos**: vence quem tem **mais gols**.
-- **Empate em gols** ao fim → **morte súbita**: o **primeiro a marcar OU a zerar a STA do adversário** vence.
+### 1.5 Condições de vitória (3 formas — confirmadas)
+- **STA é uma segunda barra de vida.** Cai um pouco por turno (cansaço) **e** quando a bola acerta o jogador (💥).
+- **1) Placar:** ao fim dos **9 turnos**, vence quem tem **mais gols**.
+  - Empate → **MORTE SÚBITA**: estende **1 turno por vez**; o **primeiro a marcar** vence.
+- **2) Goleada:** **5 gols de diferença** a qualquer momento = vitória imediata.
+- **3) Nocaute:** **zerar a STA** do adversário = vitória imediata — **vale inclusive na morte súbita**.
 
 ---
 
@@ -87,21 +88,21 @@ A ideia: o slot é o **resolvedor de aleatoriedade**, e os **símbolos dos reels
 
 ---
 
-## 4. PARTE 1 — Núcleo da partida + Máquina de Slot (protótipo da mecânica)
+## 4. PARTE 1 — Núcleo da partida + Máquina de Slot ✅ ENTREGUE (`beasts.html`)
 
-**Objetivo:** provar que o duelo por turnos com slot é divertido. Jogar **uma partida inteira** com o sistema novo, de forma isolada e rápida de testar.
+**Objetivo:** provar que o duelo por turnos com slot é divertido. Sandbox de 1 partida (Couraça, o Tatu vs Górtax, o Minotauro), isolado e rápido de testar.
 
-1. **Rebrand mínimo:** título "World Cup Beasts"; protagonista fera-tatu (arte placeholder pixel); aposentar o motor de física antigo (manter o arquivo, trocar a tela de partida).
-2. **Nova tela de partida (turn-based):** 2 barras de **STA/vida**, placar, **contador de turno (1/9)**, indicador de **posse**, e o painel da **máquina de slot**.
-3. **Loop de turnos:** estado de posse (ataque/defesa) + **pausa com câmera slow-mo** no início de cada turno.
-4. **Máquina de slot:** 3 reels animados, pools de símbolos por modo, e a **escolha de ação** que enviesa os pesos.
-5. **Resolução:** paylines → resultados (gol/erro/mantém/perde posse; defesa/roubo/bloqueio/força-erro) + **dano de STA por 💥** + contestação por stats/STA.
-6. **Fim & desempate:** 9 turnos **ou** STA zerada; **morte súbita**; tela de resultado.
-7. **Mecânica STA:** dano por turno (cansaço), dano por 💥, **nocaute**.
-8. **VFX mínimos:** slow-mo, brilho do combo vencedor, shake no gol/impacto, animação dos reels.
-9. **Teste headless de balanceamento** (como já fizemos): rodar centenas de partidas, conferir distribuição de resultados, taxa de vitória por ação/estratégia e **0 erros**.
+1. ✅ **Rebrand:** "World Cup Beasts"; protagonista fera-tatu (sprite pixel desenhado em canvas); arquivo novo `beasts.html` (o jogo de física antigo segue intacto como referência).
+2. ✅ **Tela de partida turn-based:** 2 barras de **STA/vida**, placar, **contador de turno (1/9)**, indicador de **posse**, painel da **máquina de slot**.
+3. ✅ **Loop de turnos:** posse define ataque/defesa + **pausa com câmera slow-mo** no início de cada turno.
+4. ✅ **Máquina de slot:** 3 reels animados (parada escalonada), pools de símbolos por modo, **3 ações por modo** que enviesam os pesos.
+5. ✅ **Resolução:** combinações → resultados (gol/erro/mantém/perde posse; defesa/roubo/bloqueio/força-erro) + **dano de STA por 💥** + contestação por stats/STA.
+6. ✅ **3 regras de vitória:** placar nos 9 turnos (empate → morte súbita), goleada de 5 gols, e nocaute por STA (vale na morte súbita).
+7. ✅ **Mecânica STA:** dano por turno (cansaço) + dano por 💥 + **nocaute**.
+8. ✅ **VFX:** slow-mo, animação dos reels, shake/partículas no gol e no impacto, sprites pixel (tatu/minotauro) e bola com runa de alvo.
+9. ✅ **Teste headless:** 24.000 partidas, **0 exceções**. Balanceamento: foco em gol **49%** vs foco em impacto **50%** (co-equivalentes, ninguém domina), aleatório **29%** (a estratégia quase dobra a vitória); nocaute é via de vitória real (~45% das vitórias por impacto).
 
-**Entregável da Parte 1:** um **sandbox de 1 partida** (Tatu vs 1 adversário) jogável de ponta a ponta, só pra você sentir se a máquina de slot "gruda".
+**Status:** jogável em `beasts.html`. **Falta validar com o usuário** se o slot "gruda" antes da Parte 2.
 
 ---
 
