@@ -50,30 +50,31 @@ Só um time tem a bola por vez, então cada turno é uma **disputa de posse**:
 
 ---
 
-## 2. A MÁQUINA DE SLOT (proposta concreta para a v1)
+## 2. O RESOLVEDOR: CARTAS  ⚠️ (slot descartado — pivot para cartas)
 
-A ideia: o slot é o **resolvedor de aleatoriedade**, e os **símbolos dos reels são a "build/deck"** do jogador (é aqui que mora a estratégia na Parte 2).
+> O slot foi testado e descartado pelo usuário. O resolvedor de aleatoriedade agora são **CARTAS**, num duelo simétrico (ambos os lados jogam cartas; a IA joga o adversário). É aqui que mora a "build/deck" na Parte 2.
 
-### 2.1 Símbolos
-**Reels de ATAQUE:** ⚽ Gol · 🎯 Mira (chute de poder) · 👟 Drible (mantém posse) · 🔁 Passe (posse segura) · ⭕ Erro (trave/fora) · 💥 Impacto (bola fere o adversário → dano STA).
+### 2.1 Regras de jogada (definidas pelo usuário)
+- A cada turno você monta uma **jogada** com a mão sorteada.
+- **Máx. 1 carta de FINALIZAÇÃO por turno** (não faz sentido marcar 2 gols no mesmo lance).
+- **O resto empilha** (pode jogar vários do mesmo tipo), salvo regra própria da carta.
+- **Teto de 3 cartas por jogada** (anti-spam; ainda permite empilhar 2-3).
+- A jogada é **animada no campo** (bola + personagens se movendo).
 
-**Reels de DEFESA:** 🧤 Defesa · ✋ Desarme (rouba) · 🧱 Bloqueio · 😖 Pressão (força erro) · 💥 Pancada (bloqueio de corpo → dano STA) · ⚠️ Vacilo (falha).
+### 2.2 Cartas (v1)
+**Ataque:** 🅿️ Tabela · 👟 Drible · ⚡ Lançamento · 🧠 Visão de Jogo (apoio) · ⚽ Finalização · 🪄 Chute Colocado · 💥 Bicuda (finalização) · 💢 Pancada (impacto/STA).
+**Defesa:** 🧤 Defesa · 🧱 Bloqueio (block) · ✋ Desarme (rouba) · 😖 Marcação (pressão) · 💢 Carrinho (impacto/STA).
 
-### 2.2 Resolução (legível e divertida)
-- Gira **3 reels** → lê a **linha**:
-  - **3 iguais** = efeito máximo (ex.: ⚽⚽⚽ = gol certo; 🧤🧤🧤 = defesa perfeita + recupera STA).
-  - **2 iguais** = efeito parcial, **contestado** por uma rolagem oculta (stats + STA do oponente).
-  - **3 diferentes** = resultado fraco (geralmente perde posse / chute pra fora).
-- **💥 em qualquer reel** = dano de STA extra (acumula com a quantidade de 💥).
-
-### 2.3 A AÇÃO escolhida enviesa os reels
-- Ataque: **Finalizar** (+⚽/🎯, mas +⭕ risco) · **Driblar** (+👟) · **Tocar** (+🔁 seguro).
-- Defesa: **Desarmar** (+✋, +⚠️ risco) · **Defender** (+🧤/🧱) · **Pressionar** (+😖/💥).
+### 2.3 Resolução simétrica (atacante vs defensor)
+- O **defensor pode roubar** (desarme), **forçar erro** (marcação) ou **defender** (block) → anula/reduz o ataque.
+- Finalização vira gol se `ataque − defesa ≥ limiar` (força + qualidade + precisão vs blocks + DEF).
+- **Embalo (momentum):** construir sem finalizar acumula bônus para a próxima finalização (recompensa a paciência).
+- **Impacto com CONTRAJOGO:** só conecta se o ataque chega (roubo/erro anulam) e é **reduzido pela defesa do alvo** (blocks) e pela habilidade do atacante (dribles). Isso evita o nocaute determinístico.
 
 ### 2.4 Onde entram as builds (Parte 2)
-- Na loja você **compra/forja símbolos** para colocar nos seus reels (deck-building no slot).
-- **Relíquias** alteram regras de payline (ex.: "💥 vira coringa", "⚽ paga com 2 também").
-- **Build de 💥/STA** = vencer por nocaute de fôlego → realiza a sua ideia de "estratégia válida".
+- Na loja você **compra/forja cartas** para o seu baralho (deck-building).
+- **Cartas/relíquias com regra própria** mudam o jogo (coringas, combos).
+- **Build de 💥/STA** = vencer por **nocaute de fôlego** → realiza a sua ideia de "estratégia válida" (validada: ~28% das vitórias do deck de impacto são por KO).
 
 ---
 
@@ -83,26 +84,25 @@ A ideia: o slot é o **resolvedor de aleatoriedade**, e os **símbolos dos reels
 2. STA = **barra de vida** do time; zerá-la = **derrota imediata** (nocaute).
 3. Cada turno é **uma disputa de posse**; o modo (ataque/defesa) segue quem tem a bola.
 4. A **decisão do jogador** é **escolher a ação** (que enviesa o slot); o **slot resolve** a sorte.
-5. Vamos com a **máquina de slot primeiro**; dado/carta ficam como arquitetura futura plugável.
+5. ~~Máquina de slot~~ → **descartada**. Resolvedor agora é **CARTAS** (duelo simétrico, IA joga o adversário). Dado fica como arquitetura futura plugável.
 6. Mantemos o esqueleto roguelike (Copa + loja), mas adaptado ao slot — **na Parte 2**.
 
 ---
 
-## 4. PARTE 1 — Núcleo da partida + Máquina de Slot ✅ ENTREGUE (`beasts.html`)
+## 4. PARTE 1 — Duelo de Cartas com campo animado ✅ ENTREGUE (`beasts.html`)
 
-**Objetivo:** provar que o duelo por turnos com slot é divertido. Sandbox de 1 partida (Couraça, o Tatu vs Górtax, o Minotauro), isolado e rápido de testar.
+**Objetivo:** provar que o duelo por turnos com **cartas** é divertido. Sandbox de 1 partida (Couraça, o Tatu vs Górtax, o Minotauro), isolado e rápido de testar.
 
-1. ✅ **Rebrand:** "World Cup Beasts"; protagonista fera-tatu (sprite pixel desenhado em canvas); arquivo novo `beasts.html` (o jogo de física antigo segue intacto como referência).
-2. ✅ **Tela de partida turn-based:** 2 barras de **STA/vida**, placar, **contador de turno (1/9)**, indicador de **posse**, painel da **máquina de slot**.
-3. ✅ **Loop de turnos:** posse define ataque/defesa + **pausa com câmera slow-mo** no início de cada turno.
-4. ✅ **Máquina de slot:** 3 reels animados (parada escalonada), pools de símbolos por modo, **3 ações por modo** que enviesam os pesos.
-5. ✅ **Resolução:** combinações → resultados (gol/erro/mantém/perde posse; defesa/roubo/bloqueio/força-erro) + **dano de STA por 💥** + contestação por stats/STA.
+1. ✅ **Rebrand:** "World Cup Beasts"; protagonista fera-tatu (sprite pixel em canvas); arquivo `beasts.html` (o jogo de física antigo segue como referência).
+2. ✅ **Tela turn-based:** 2 barras de **STA/vida**, placar, **turno (1/9)**, indicador de **posse**, **mão de cartas** + **zona de jogada**.
+3. ✅ **Sistema de cartas:** mão sorteada por modo (ataque/defesa); regras "1 finalização + resto empilha, teto de 3"; **embalo (momentum)** para construir antes de finalizar.
+4. ✅ **Resolução simétrica:** a **IA joga as cartas do Górtax**; contraste atacante×defensor (roubo/erro/defesa/finalização) + **impacto com contrajogo**.
+5. ✅ **Campo animado:** a bola viaja pelos passes/chutes e os personagens se movem (perseguem/recebem); shake/partículas no gol e no impacto; banner de câmera lenta no início do turno.
 6. ✅ **3 regras de vitória:** placar nos 9 turnos (empate → morte súbita), goleada de 5 gols, e nocaute por STA (vale na morte súbita).
-7. ✅ **Mecânica STA:** dano por turno (cansaço) + dano por 💥 + **nocaute**.
-8. ✅ **VFX:** slow-mo, animação dos reels, shake/partículas no gol e no impacto, sprites pixel (tatu/minotauro) e bola com runa de alvo.
-9. ✅ **Teste headless:** 24.000 partidas, **0 exceções**. Balanceamento: foco em gol **49%** vs foco em impacto **50%** (co-equivalentes, ninguém domina), aleatório **29%** (a estratégia quase dobra a vitória); nocaute é via de vitória real (~45% das vitórias por impacto).
+7. ✅ **STA como vida:** cansaço por turno + dano de impacto (reduzido por defesa).
+8. ✅ **Teste headless:** 40.000 partidas, **0 exceções**. Balanceamento: estratégia de **gol 52%** vs **impacto 50%** (co-equivalentes), nocaute em **~28%** dos jogos de impacto, espelho **54%** (leve vantagem de quem começa), **aleatório 31%** (estratégia quase dobra a vitória).
 
-**Status:** jogável em `beasts.html`. **Falta validar com o usuário** se o slot "gruda" antes da Parte 2.
+**Status:** jogável em `beasts.html`. **Falta validar com o usuário** se o duelo de cartas "gruda" antes da Parte 2.
 
 ---
 
