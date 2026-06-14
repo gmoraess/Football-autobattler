@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Mundial dos Mitos — MVP</title>
+<style>
+  :root{
+    --bg:#0a0e1a; --panel:#131a2e; --panel2:#1b2540; --line:#2a3556;
+    --txt:#e8edf7; --muted:#8a96b8; --gold:#f5c451; --good:#4fd18b; --bad:#ff6b6b;
+    --sol:#ff8a3d; --brumas:#8a6bff; --prof:#1fc3b0; --tormentas:#f5d33d;
+    --shadow:0 8px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    overflow-x:hidden}
+  body{display:flex;justify-content:center}
+  #app{width:100%;max-width:780px;min-height:100vh;position:relative;padding:14px 14px 40px}
+  h1,h2,h3{margin:0 0 .4em;font-weight:800;letter-spacing:.3px}
+  h1{font-size:30px} h2{font-size:21px} h3{font-size:16px}
+  p{line-height:1.5;color:var(--muted);margin:.3em 0}
+  .center{text-align:center}
+  .muted{color:var(--muted)}
+  .gold{color:var(--gold)}
+  .good{color:var(--good)} .bad{color:var(--bad)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;
+    background:var(--panel2);border:1px solid var(--line)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:linear-gradient(180deg,#2b3a63,#202c4e);color:var(--txt);border:1px solid var(--line);
+    padding:12px 18px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;
+    transition:transform .06s ease, filter .15s ease;user-select:none}
+  .btn:hover{filter:brightness(1.12)} .btn:active{transform:translateY(1px) scale(.99)}
+  .btn.primary{background:linear-gradient(180deg,#f5c451,#e0a72f);color:#241a00;border-color:#caa033}
+  .btn.ghost{background:transparent}
+  .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .btn.full{width:100%}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;
+    box-shadow:var(--shadow)}
+  .row{display:flex;gap:10px} .col{display:flex;flex-direction:column;gap:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .wrap{flex-wrap:wrap}
+  .screen{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+  .topbar .res{display:flex;gap:14px;align-items:center;font-weight:700;font-size:14px}
+
+  /* nation cards */
+  .nation{cursor:pointer;border-radius:16px;border:2px solid var(--line);padding:16px;
+    background:var(--panel);transition:transform .1s,border-color .15s;position:relative;overflow:hidden}
+  .nation:hover{transform:translateY(-3px)}
+  .nation .crest{font-size:40px;line-height:1}
+  .nation.sel{border-color:var(--gold)}
+  .nation .glow{position:absolute;inset:0;opacity:.14;pointer-events:none}
+
+  /* unit cards */
+  .unit{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px;
+    position:relative}
+  .unit .nm{font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px}
+  .unit .arch{font-size:11px;color:var(--muted);margin:2px 0 7px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:11px}
+  .stat{background:#0e1426;border-radius:7px;padding:4px 2px;text-align:center}
+  .stat b{display:block;font-size:13px}
+  .role{position:absolute;top:9px;right:9px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px}
+  .role.ATA{background:#4a1d1d;color:#ff9c9c} .role.MEI{background:#1d3a4a;color:#8fd6ff}
+  .role.DEF{background:#1d4a2c;color:#9cffb6} .role.GOL{background:#4a401d;color:#ffe39c}
+  .rar{font-size:10px;font-weight:800}
+  .rar.Comum{color:#9fb0d6} .rar.Raro{color:#6fb6ff} .rar.Lendário{color:var(--gold)}
+  .abil{font-size:11px;color:#b9c4e6;margin-top:8px;line-height:1.35;min-height:30px}
+  .starter-tag{position:absolute;bottom:9px;right:9px;font-size:10px;font-weight:800;color:var(--good)}
+
+  /* bracket */
+  .bracket{display:flex;flex-direction:column;gap:8px}
+  .stage{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;
+    padding:10px 14px;background:var(--panel)}
+  .stage.done{opacity:.5} .stage.cur{border-color:var(--gold);background:var(--panel2)}
+  .stage .ic{font-size:22px;width:30px;text-align:center}
+  .stage .nm{font-weight:800} .stage .sub{font-size:12px;color:var(--muted)}
+  .stage .mark{margin-left:auto;font-weight:800}
+
+  /* field */
+  #field{position:relative;width:100%;height:200px;border-radius:14px;overflow:hidden;
+    background:
+      repeating-linear-gradient(90deg,#1f7a3a 0 9.99%,#1c7136 10% 19.99%);
+    border:2px solid #0c4a20;box-shadow:inset 0 0 40px rgba(0,0,0,.4)}
+  #field .midline{position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.5)}
+  #field .circle{position:absolute;left:50%;top:50%;width:64px;height:64px;border:2px solid rgba(255,255,255,.5);
+    border-radius:50%;transform:translate(-50%,-50%)}
+  #field .goal{position:absolute;top:50%;transform:translateY(-50%);width:8px;height:64px;
+    background:rgba(255,255,255,.85)}
+  #field .goal.l{left:0;border-radius:0 4px 4px 0} #field .goal.r{right:0;border-radius:4px 0 0 4px}
+  #field .area{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:120px;
+    border:2px solid rgba(255,255,255,.4)}
+  #field .area.l{left:0;border-left:none} #field .area.r{right:0;border-right:none}
+  #ball{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#fff,#cfd6e4);box-shadow:0 2px 6px rgba(0,0,0,.5);
+    transform:translate(-50%,-50%);transition:left .35s ease, top .35s ease;z-index:3}
+  .crowd{position:absolute;left:0;right:0;height:14px;background:repeating-linear-gradient(90deg,#0c1326 0 6px,#15203b 6px 12px)}
+  .crowd.top{top:0} .crowd.bot{bottom:0}
+
+  .scoreboard{display:flex;align-items:center;justify-content:center;gap:14px;margin:10px 0;
+    font-weight:900;font-size:26px}
+  .scoreboard .tn{font-size:13px;font-weight:800;max-width:120px;text-align:center}
+  .clock{background:#000;color:#5fffa0;font-family:ui-monospace,Menlo,monospace;
+    padding:3px 10px;border-radius:8px;font-size:16px}
+  .momentum{height:10px;border-radius:6px;background:#3a1d1d;overflow:hidden;border:1px solid var(--line)}
+  .momentum>div{height:100%;background:linear-gradient(90deg,var(--good),#2e9c66);transition:width .35s}
+
+  .energybar{height:14px;border-radius:8px;background:#0e1426;overflow:hidden;border:1px solid var(--line)}
+  .energybar>div{height:100%;background:linear-gradient(90deg,#f5c451,#ff8a3d);transition:width .25s}
+  .tactics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+  .tactic{font-size:12px;padding:10px 6px;line-height:1.25;text-align:center}
+  .tactic small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+
+  #log{height:120px;overflow-y:auto;background:#0c1120;border:1px solid var(--line);border-radius:12px;
+    padding:10px;font-size:13px;line-height:1.55}
+  #log .e{margin-bottom:3px} #log .goal{color:var(--gold);font-weight:800}
+  #log .save{color:#8fd6ff} #log .turn{color:var(--muted)} #log .sys{color:#c0a0ff}
+
+  .shopitem{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;
+    padding:10px;background:var(--panel2)}
+  .shopitem .ic{font-size:26px} .shopitem .info{flex:1}
+  .shopitem .info .t{font-weight:800;font-size:14px} .shopitem .info .d{font-size:12px;color:var(--muted)}
+
+  .speedctl{display:flex;gap:6px}
+  .speedctl .btn{padding:8px 12px;font-size:13px}
+  .seg.on{outline:2px solid var(--gold)}
+
+  .relicrow{display:flex;gap:6px;flex-wrap:wrap}
+  .relic{font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+
+  .fab{position:fixed;bottom:12px;right:12px;z-index:50}
+  .hidden{display:none!important}
+  .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#000c;border:1px solid var(--gold);
+    color:var(--gold);padding:10px 18px;border-radius:10px;font-weight:800;z-index:99;animation:fade .25s}
+  @media(max-width:520px){
+    h1{font-size:24px} .grid2{grid-template-columns:1fr} #field{height:170px}
+    .scoreboard{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   MUNDIAL DOS MITOS — MVP roguelike autobattler de futebol mítico
+   Loop: escolher nação -> estrutura de Copa -> loja roguelike -> partida ao vivo
+   ========================================================================== */
+
+const $ = (s,el=document)=>el.querySelector(s);
+const app = $("#app");
+const rnd = (a,b)=>a+Math.random()*(b-a);
+const ri = (a,b)=>Math.floor(rnd(a,b+1));
+const pick = arr=>arr[ri(0,arr.length-1)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const id=()=>Math.random().toString(36).slice(2,9);
+
+/* ---------------------------------- DADOS --------------------------------- */
+const NATIONS = {
+  sol:{key:"sol",name:"Reino do Sol Eterno",crest:"☀️",color:"var(--sol)",
+    style:"Agressivo / Ofensivo",
+    desc:"Futebol que cresce em chamas: a cada gol marcado a seleção ganha mais força de ataque.",
+    bonus:{atk:3},passive:"momentum",
+    tactic:{name:"Aurora Flamejante",cost:60,kind:"atk",mag:2.0,dur:3,
+      desc:"Explosão ofensiva: ataque dobrado por alguns lances."}},
+  brumas:{key:"brumas",name:"República das Brumas",crest:"🌫️",color:"var(--brumas)",
+    style:"Controle / Ilusão",
+    desc:"Domina a posse e confunde o adversário, roubando a bola com magia.",
+    bonus:{ctrl:3},passive:"steal",
+    tactic:{name:"Véu de Névoa",cost:55,kind:"steal",dur:2,
+      desc:"Rouba a posse de bola e reduz a precisão adversária."}},
+  prof:{key:"prof",name:"Confederação das Profundezas",crest:"🔱",color:"var(--prof)",
+    style:"Defensivo / Resiliente",
+    desc:"Muralha que vence por desgaste: regenera fôlego e cansa o oponente.",
+    bonus:{def:3},passive:"regen",
+    tactic:{name:"Maré Profunda",cost:55,kind:"def",mag:2.0,dur:3,
+      desc:"Defesa dobrada e drena o fôlego do adversário."}},
+  tormentas:{key:"tormentas",name:"Clã das Tormentas",crest:"⚡",color:"var(--tormentas)",
+    style:"Velocidade / Caos",
+    desc:"Alto risco e alta recompensa: contra-ataques relâmpago que decidem em segundos.",
+    bonus:{vel:3},passive:"counter",
+    tactic:{name:"Olho da Tempestade",cost:50,kind:"counter",dur:2,
+      desc:"Contra-ataque fulminante: chance enorme de gol imediato."}},
+};
+
+// Arquétipos de jogadores (pool de recrutamento). r = orçamento/raridade.
+const ARCH = [
+  // Goleiros
+  {a:"Goleira de Cristal",role:"GOL",ic:"🧊",rar:"Lendário",base:{atk:0,def:9,ctrl:3,vel:3},
+    pa:"cristal",ab:"Defende quase tudo, mas trinca a cada defesa — perde força se sobrecarregada."},
+  {a:"Guardião de Pedra",role:"GOL",ic:"🛡️",rar:"Comum",base:{atk:0,def:6,ctrl:2,vel:2},
+    pa:null,ab:"Goleiro sólido e constante, sem surpresas."},
+  {a:"Sentinela das Marés",role:"GOL",ic:"🌊",rar:"Raro",base:{atk:0,def:7,ctrl:4,vel:2},
+    pa:"regen",ab:"Acalma o jogo: o time recupera fôlego mais rápido."},
+  // Defensores
+  {a:"Sentinela de Ferro",role:"DEF",ic:"⚙️",rar:"Comum",base:{atk:1,def:6,ctrl:2,vel:2},
+    pa:null,ab:"Defesa confiável de retaguarda."},
+  {a:"Muralha Ancestral",role:"DEF",ic:"🗿",rar:"Raro",base:{atk:1,def:7,ctrl:2,vel:1},
+    pa:"slow",ab:"Reduz a velocidade do ataque adversário."},
+  {a:"Couraça de Abismo",role:"DEF",ic:"🐚",rar:"Raro",base:{atk:1,def:8,ctrl:3,vel:1},
+    pa:null,ab:"Bloqueio pesado das profundezas."},
+  // Meio-campo
+  {a:"Meia Ancião",role:"MEI",ic:"🧙",rar:"Lendário",base:{atk:2,def:2,ctrl:9,vel:1},
+    pa:"maestro",ab:"Fraco fisicamente, mas dita o ritmo: +controle a todos os companheiros."},
+  {a:"Maestro das Brumas",role:"MEI",ic:"🎴",rar:"Raro",base:{atk:3,def:2,ctrl:6,vel:3},
+    pa:"steal",ab:"Tece ilusões: chance de roubar a posse adversária."},
+  {a:"Vendaval",role:"MEI",ic:"🌀",rar:"Comum",base:{atk:3,def:2,ctrl:3,vel:6},
+    pa:null,ab:"Liga defesa e ataque com velocidade."},
+  // Atacantes
+  {a:"Centroavante de Fogo",role:"ATA",ic:"🔥",rar:"Lendário",base:{atk:9,def:1,ctrl:2,vel:4},
+    pa:"calor",ab:"Cada gol aumenta o calor do campo, queimando o fôlego dos dois times."},
+  {a:"Lâmina Veloz",role:"ATA",ic:"🗡️",rar:"Raro",base:{atk:6,def:1,ctrl:2,vel:6},
+    pa:"counter",ab:"Mestre do contra-ataque em alta velocidade."},
+  {a:"Caçador Sombrio",role:"ATA",ic:"🌑",rar:"Raro",base:{atk:7,def:1,ctrl:3,vel:4},
+    pa:null,ab:"Finalizador imprevisível e letal."},
+  {a:"Aríete Solar",role:"ATA",ic:"🌟",rar:"Comum",base:{atk:6,def:1,ctrl:2,vel:3},
+    pa:"momentum",ab:"Cresce conforme marca: ganha força a cada gol."},
+];
+
+const RELICS = [
+  {key:"ambar",ic:"🟠",name:"Bola de Âmbar",desc:"+18% de chance de gol em todas as finalizações.",
+    cost:5,eff:{shot:0.18}},
+  {key:"vento",ic:"👟",name:"Chuteiras do Vento",desc:"+25% de velocidade da equipe.",
+    cost:5,eff:{velMul:1.25}},
+  {key:"amuleto",ic:"📿",name:"Amuleto do Guardião",desc:"+30% de defesa do goleiro.",
+    cost:5,eff:{gk:1.30}},
+  {key:"tambor",ic:"🥁",name:"Tambor de Guerra",desc:"A energia das táticas enche 60% mais rápido.",
+    cost:4,eff:{energy:1.6}},
+  {key:"calice",ic:"🏆",name:"Cálice da Resistência",desc:"Recupera fôlego: stamina cai 40% mais devagar.",
+    cost:4,eff:{stam:0.6}},
+  {key:"coroa",ic:"👑",name:"Coroa do Artilheiro",desc:"+20% de ataque global da equipe.",
+    cost:6,eff:{atkMul:1.20}},
+];
+
+const STAGES = [
+  {key:"g1",name:"Fase de Grupos — Jogo 1",ic:"🟢",diff:0.70,reward:9,boss:false},
+  {key:"g2",name:"Fase de Grupos — Jogo 2",ic:"🟢",diff:0.78,reward:9,boss:false},
+  {key:"g3",name:"Fase de Grupos — Jogo 3",ic:"🟢",diff:0.86,reward:10,boss:false},
+  {key:"r16",name:"Oitavas de Final",ic:"⚔️",diff:0.94,reward:11,boss:false,ko:true},
+  {key:"qf",name:"Quartas de Final",ic:"⚔️",diff:1.02,reward:13,boss:false,ko:true},
+  {key:"sf",name:"Semifinal",ic:"🔥",diff:1.10,reward:15,boss:false,ko:true},
+  {key:"final",name:"A FINAL — Seleção Imortal",ic:"👑",diff:1.18,reward:0,boss:true,ko:true},
+];
+
+const ENEMY_NAMES = ["Horda de Cinzas","Legião de Vidro","Ordem do Eclipse","Falange Errante",
+  "Coral Sangrento","Estandarte Oco","Cova dos Reis","Vanguarda Lunar","Sentinelas de Ônix",
+  "Filhos do Trovão","Companhia das Sombras","Bando das Dunas"];
+
+/* --------------------------------- ESTADO --------------------------------- */
+let S = null;
+function newRun(nationKey){
+  const n = NATIONS[nationKey];
+  S = {
+    nation:nationKey, gold:12, stageIdx:0, relics:[],
+    roster:startingSquad(nationKey), starters:[], history:[],
+  };
+  // primeiros 5 jogadores viram titulares automaticamente
+  S.starters = S.roster.slice(0,5).map(u=>u.uid);
+}
+
+function mkUnit(arch, lvl=1){
+  const u={uid:id(),...arch,lvl,stats:{...arch.base}};
+  // pequena variação para dar identidade
+  for(const k in u.stats){ if(u.stats[k]>0) u.stats[k]+=ri(0,1); }
+  return u;
+}
+function startingSquad(nationKey){
+  // cada nação começa com 6 jogadores temáticos (5 titulares + 1 reserva)
+  const byArch=a=>ARCH.find(x=>x.a===a);
+  const sets={
+    sol:["Guardião de Pedra","Sentinela de Ferro","Vendaval","Aríete Solar","Centroavante de Fogo","Caçador Sombrio"],
+    brumas:["Sentinela das Marés","Sentinela de Ferro","Meia Ancião","Maestro das Brumas","Caçador Sombrio","Vendaval"],
+    prof:["Sentinela das Marés","Couraça de Abismo","Muralha Ancestral","Vendaval","Aríete Solar","Caçador Sombrio"],
+    tormentas:["Guardião de Pedra","Sentinela de Ferro","Vendaval","Lâmina Veloz","Caçador Sombrio","Aríete Solar"],
+  };
+  return sets[nationKey].map(a=>mkUnit(byArch(a)));
+}
+
+function unit(uid){return S.roster.find(u=>u.uid===uid);}
+function starterUnits(){return S.starters.map(unit);}
+function hasRelic(k){return S.relics.includes(k);}
+function relicEff(){
+  const e={shot:0,velMul:1,gk:1,energy:1,stam:1,atkMul:1};
+  for(const k of S.relics){const r=RELICS.find(x=>x.key===k);if(!r)continue;
+    for(const ek in r.eff){ if(ek==="shot") e.shot+=r.eff[ek];
+      else e[ek]*= (ek in r.eff? r.eff[ek]:1); }}
+  return e;
+}
+
+/* ----------------------- AGREGAÇÃO DE FORÇA DO TIME ----------------------- */
+function teamPower(units, nationKey){
+  const n = NATIONS[nationKey];
+  let atk=0,def=0,ctrl=0,vel=0,gk=0;
+  const maestro = units.some(u=>u.pa==="maestro");
+  for(const u of units){
+    const s=u.stats; const ctrlBonus = (maestro && u.pa!=="maestro")?2:0;
+    const w = u.role==="ATA"?{atk:1,def:.1,ctrl:.4,vel:.6}
+            : u.role==="MEI"?{atk:.6,def:.4,ctrl:1,vel:.7}
+            : u.role==="DEF"?{atk:.2,def:1,ctrl:.4,vel:.4}
+            : {atk:0,def:.3,ctrl:.3,vel:.2}; // GOL
+    atk+=s.atk*w.atk; def+=s.def*w.def;
+    ctrl+=(s.ctrl+ctrlBonus)*w.ctrl; vel+=s.vel*w.vel;
+    if(u.role==="GOL") gk=Math.max(gk,s.def);
+  }
+  if(n){atk+=(n.bonus.atk||0);def+=(n.bonus.def||0);ctrl+=(n.bonus.ctrl||0);vel+=(n.bonus.vel||0);}
+  return {atk,def,ctrl,vel,gk:gk||3};
+}
+
+/* ----------------------- GERAÇÃO DE ADVERSÁRIO (IA) ----------------------- */
+function makeEnemy(stage){
+  const styleNation = pick(Object.keys(NATIONS));
+  const n=NATIONS[styleNation];
+  let units;
+  if(stage.boss){
+    // boss: elenco lendário
+    const leg = ARCH.filter(a=>a.rar!=="Comum");
+    units=[ARCH.find(a=>a.a==="Goleira de Cristal"),
+      ARCH.find(a=>a.a==="Couraça de Abismo"),
+      ARCH.find(a=>a.a==="Meia Ancião"),
+      ARCH.find(a=>a.a==="Centroavante de Fogo"),
+      ARCH.find(a=>a.a==="Caçador Sombrio")].map(a=>mkUnit(a,2));
+  } else {
+    const roles=["GOL","DEF","MEI","ATA","ATA"];
+    units=roles.map(r=>mkUnit(pick(ARCH.filter(a=>a.role===r))));
+  }
+  const power=teamPower(units, styleNation);
+  // escala a força bruta pela dificuldade da fase
+  const d=stage.diff;
+  for(const k in power) power[k]*=d;
+  return {
+    name: stage.boss?"Seleção Imortal":pick(ENEMY_NAMES),
+    crest: stage.boss?"💀":n.crest, color:n.color,
+    nation:styleNation, units, power, boss:stage.boss,
+  };
+}
+
+/* =============================== RENDER UI ================================ */
+function clear(){app.innerHTML="";}
+function topbar(){
+  const st=STAGES[S.stageIdx];
+  const relics = S.relics.map(k=>{const r=RELICS.find(x=>x.key===k);return `<span class="relic" title="${r.desc}">${r.ic}</span>`}).join("");
+  return `<div class="topbar">
+    <div class="res">
+      <span>${NATIONS[S.nation].crest} <span class="muted">${NATIONS[S.nation].name.split(" ").slice(-1)}</span></span>
+      <span class="gold">🪙 ${S.gold}</span>
+    </div>
+    <div class="res">
+      <div class="relicrow">${relics||'<span class="muted" style="font-size:11px">sem relíquias</span>'}</div>
+    </div>
+  </div>`;
+}
+function toast(msg){
+  const t=document.createElement("div");t.className="toast";t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),1700);
+}
+
+/* ------------------------------- TÍTULO ----------------------------------- */
+function screenTitle(){
+  clear();
+  app.innerHTML=`<div class="screen center" style="padding-top:8vh">
+    <div style="font-size:64px">⚽👑</div>
+    <h1>MUNDIAL DOS MITOS</h1>
+    <p style="max-width:460px;margin:6px auto 4px">A cada era, as nações míticas convocam seus campeões sobrenaturais
+      para o torneio que decide quem reinará pelos próximos mil anos.</p>
+    <p class="gold" style="font-weight:700">Você é o técnico. Leve sua seleção à glória eterna.</p>
+    <div class="col" style="max-width:300px;margin:26px auto 0">
+      <button class="btn primary full" id="start">▶  Iniciar Corrida</button>
+      <button class="btn ghost full" id="how">Como jogar</button>
+    </div>
+    <p class="muted" style="margin-top:26px;font-size:12px">MVP de validação · v0.1</p>
+  </div>`;
+  $("#start").onclick=screenNation;
+  $("#how").onclick=screenHow;
+}
+function screenHow(){
+  clear();
+  app.innerHTML=`<div class="screen">
+    <h2>Como jogar</h2>
+    <div class="card col">
+      <p><b class="gold">1. Escolha sua nação</b> — define identidade, elenco inicial e a sua tática-assinatura.</p>
+      <p><b class="gold">2. Suba na Copa</b> — Fase de Grupos → Oitavas → Quartas → Semi → <b>Final</b> (chefe). Perder no mata-mata encerra a corrida.</p>
+      <p><b class="gold">3. Entre as partidas</b> — gaste 🪙 Ouro Místico na <b>loja de transferências</b> (novos jogadores) e em <b>relíquias</b> (bônus permanentes). Escale seus 5 titulares.</p>
+      <p><b class="gold">4. Na partida</b> — a simulação roda sozinha; você ativa <b>táticas</b> nos momentos-chave gastando energia. As habilidades dos jogadores agem sozinhas.</p>
+      <p class="muted">Elenco reduzido: cada jogador é uma unidade com peso real. Arquétipos têm mecânicas próprias (o Centroavante de Fogo esquenta o campo, a Goleira de Cristal trinca a cada defesa, o Meia Ancião potencializa os colegas…).</p>
+    </div>
+    <button class="btn full" style="margin-top:14px" id="back">Voltar</button>
+  </div>`;
+  $("#back").onclick=screenTitle;
+}
+
+/* --------------------------- SELEÇÃO DE NAÇÃO ----------------------------- */
+function screenNation(){
+  clear();
+  let selected=null;
+  const cards=Object.values(NATIONS).map(n=>`
+    <div class="nation" data-k="${n.key}">
+      <div class="glow" style="background:${n.color}"></div>
+      <div class="row" style="align-items:center;gap:12px">
+        <div class="crest">${n.crest}</div>
+        <div><div style="font-weight:800;font-size:16px">${n.name}</div>
+          <div class="pill" style="margin-top:3px;color:${n.color}">${n.style}</div></div>
+      </div>
+      <p style="margin:10px 0 8px">${n.desc}</p>
+      <div style="font-size:12px"><b>Tática:</b> <span style="color:${n.color}">${n.tactic.name}</span> — <span class="muted">${n.tactic.desc}</span></div>
+    </div>`).join("");
+  app.innerHTML=`<div class="screen">
+    <h2 class="center">Escolha sua Seleção Imortal</h2>
+    <p class="center muted" style="margin-bottom:14px">A nação define sua identidade base — a corrida vai moldá-la.</p>
+    <div class="grid2">${cards}</div>
+    <button class="btn primary full" id="go" style="margin-top:16px" disabled>Convocar elenco →</button>
+  </div>`;
+  app.querySelectorAll(".nation").forEach(c=>c.onclick=()=>{
+    app.querySelectorAll(".nation").forEach(x=>x.classList.remove("sel"));
+    c.classList.add("sel");selected=c.dataset.k;$("#go").disabled=false;
+  });
+  $("#go").onclick=()=>{if(!selected)return;newRun(selected);screenHub();};
+}
+
+/* ------------------------------ HUB / BRACKET ----------------------------- */
+function screenHub(){
+  clear();
+  const stages=STAGES.map((st,i)=>{
+    const cls=i<S.stageIdx?"done":i===S.stageIdx?"cur":"";
+    const mark=i<S.stageIdx?'<span class="good mark">✔</span>':i===S.stageIdx?'<span class="gold mark">▶</span>':'<span class="muted mark">🔒</span>';
+    const sub=st.boss?"Chefe final · mecânica única":st.ko?"Mata-mata · derrota elimina":"Mais fácil · experimente sua build";
+    return `<div class="stage ${cls}"><div class="ic">${st.ic}</div>
+      <div><div class="nm">${st.name}</div><div class="sub">${sub}</div></div>${mark}</div>`;
+  }).join("");
+  app.innerHTML=topbar()+`<div class="screen">
+    <h2>Caminho da Copa</h2>
+    <div class="bracket">${stages}</div>
+    <div class="card" style="margin-top:14px">
+      <h3>Próximo desafio</h3>
+      <p>${STAGES[S.stageIdx].name}</p>
+      <div class="row wrap" style="margin-top:8px">
+        <button class="btn primary" id="prep">🛠️ Preparar equipe</button>
+        <button class="btn" id="squad">👥 Ver elenco</button>
+      </div>
+    </div>
+  </div>`;
+  $("#prep").onclick=screenPrep;
+  $("#squad").onclick=()=>screenSquad(screenHub);
+}
+
+/* ------------------------------- ELENCO ----------------------------------- */
+function unitCard(u, opts={}){
+  const isStarter=S.starters.includes(u.uid);
+  return `<div class="unit" data-uid="${u.uid}">
+    <div class="role ${u.role}">${u.role}</div>
+    <div class="nm">${u.ic} ${u.a}</div>
+    <div class="arch"><span class="rar ${u.rar}">${u.rar}</span></div>
+    <div class="stats">
+      <div class="stat">ATA<b>${u.stats.atk}</b></div>
+      <div class="stat">DEF<b>${u.stats.def}</b></div>
+      <div class="stat">CTL<b>${u.stats.ctrl}</b></div>
+      <div class="stat">VEL<b>${u.stats.vel}</b></div>
+    </div>
+    <div class="abil">${u.ab}</div>
+    ${opts.toggle?`<button class="btn ${isStarter?'primary':'ghost'}" style="width:100%;margin-top:8px;padding:7px" data-toggle="${u.uid}">${isStarter?'★ Titular':'Reserva'}</button>`:""}
+    ${(!opts.toggle&&isStarter)?'<div class="starter-tag">★ titular</div>':""}
+  </div>`;
+}
+function screenSquad(back){
+  clear();
+  const cards=S.roster.map(u=>unitCard(u,{toggle:true})).join("");
+  const power=teamPower(starterUnits(),S.nation);
+  app.innerHTML=topbar()+`<div class="screen">
+    <h2>Escalação</h2>
+    <p class="muted">Escolha <b>5 titulares</b> (★). Os demais ficam no banco. Cada peça muda a força do time.</p>
+    <div class="card" style="margin:8px 0">
+      <div class="row" style="justify-content:space-around;text-align:center;font-weight:800">
+        <div>🗡️ ATA<br><span style="color:var(--sol)">${power.atk.toFixed(0)}</span></div>
+        <div>🛡️ DEF<br><span style="color:var(--prof)">${power.def.toFixed(0)}</span></div>
+        <div>🎴 CTL<br><span style="color:var(--brumas)">${power.ctrl.toFixed(0)}</span></div>
+        <div>⚡ VEL<br><span style="color:var(--tormentas)">${power.vel.toFixed(0)}</span></div>
+      </div>
+    </div>
+    <div class="grid2">${cards}</div>
+    <button class="btn primary full" id="ok" style="margin-top:14px">Confirmar escalação</button>
+  </div>`;
+  app.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{
+    const uid=b.dataset.toggle;
+    if(S.starters.includes(uid)){S.starters=S.starters.filter(x=>x!==uid);}
+    else{ if(S.starters.length>=5){toast("Máximo de 5 titulares");return;} S.starters.push(uid);}
+    screenSquad(back);
+  });
+  $("#ok").onclick=()=>{
+    if(S.starters.length!==5){toast("Escale exatamente 5 titulares");return;}
+    back();
+  };
+}
+
+/* ------------------------------- PREPARAÇÃO / LOJA ------------------------ */
+function genShop(){
+  // 3 jogadores + 2 relíquias disponíveis (não repetir relíquia já obtida)
+  const players=[];
+  for(let i=0;i<3;i++){
+    const arch=pick(ARCH);
+    const cost = arch.rar==="Lendário"?7:arch.rar==="Raro"?4:2;
+    players.push({u:mkUnit(arch),cost});
+  }
+  const avail=RELICS.filter(r=>!hasRelic(r.key));
+  const relics=[];
+  const pool=[...avail];
+  for(let i=0;i<2&&pool.length;i++){relics.push(pool.splice(ri(0,pool.length-1),1)[0]);}
+  return {players,relics};
+}
+function screenPrep(){
+  clear();
+  if(!S._shop) S._shop=genShop();
+  const shop=S._shop;
+  const pcards=shop.players.map((it,i)=>it.bought?"":`
+    <div class="shopitem">
+      <div class="ic">${it.u.ic}</div>
+      <div class="info"><div class="t">${it.u.a} <span class="rar ${it.u.rar}" style="font-size:10px">${it.u.rar}</span></div>
+        <div class="d">ATA ${it.u.stats.atk} · DEF ${it.u.stats.def} · CTL ${it.u.stats.ctrl} · VEL ${it.u.stats.vel}</div>
+        <div class="d">${it.u.ab}</div></div>
+      <button class="btn ${S.gold<it.cost?'':'primary'}" data-buyp="${i}" ${S.gold<it.cost?'disabled':''}>🪙 ${it.cost}</button>
+    </div>`).join("");
+  const rcards=shop.relics.map((r,i)=>r.bought?"":`
+    <div class="shopitem">
+      <div class="ic">${r.ic}</div>
+      <div class="info"><div class="t">${r.name}</div><div class="d">${r.desc}</div></div>
+      <button class="btn ${S.gold<r.cost?'':'primary'}" data-buyr="${i}" ${S.gold<r.cost?'disabled':''}>🪙 ${r.cost}</button>
+    </div>`).join("");
+  app.innerHTML=topbar()+`<div class="screen">
+    <h2>Mercado de Transferências</h2>
+    <p class="muted">Recrute campeões e adquira relíquias antes de <b>${STAGES[S.stageIdx].name}</b>.</p>
+    <h3 style="margin-top:12px">⚜️ Jogadores místicos</h3>
+    <div class="col">${pcards||'<p class="muted">Tudo vendido.</p>'}</div>
+    <h3 style="margin-top:14px">🏺 Táticas Ancestrais (relíquias)</h3>
+    <div class="col">${rcards||'<p class="muted">Sem relíquias disponíveis.</p>'}</div>
+    <div class="row wrap" style="margin-top:16px">
+      <button class="btn" id="squad">👥 Escalar (${S.starters.length}/5)</button>
+      <button class="btn primary" id="play">⚽ Entrar em campo →</button>
+    </div>
+  </div>`;
+  app.querySelectorAll("[data-buyp]").forEach(b=>b.onclick=()=>{
+    const it=shop.players[+b.dataset.buyp];
+    if(S.gold<it.cost)return;
+    S.gold-=it.cost;S.roster.push(it.u);it.bought=true;
+    toast(`${it.u.a} recrutado!`);screenPrep();
+  });
+  app.querySelectorAll("[data-buyr]").forEach(b=>b.onclick=()=>{
+    const r=shop.relics[+b.dataset.buyr];
+    if(S.gold<r.cost)return;
+    S.gold-=r.cost;S.relics.push(r.key);r.bought=true;
+    toast(`Relíquia: ${r.name}!`);screenPrep();
+  });
+  $("#squad").onclick=()=>screenSquad(screenPrep);
+  $("#play").onclick=()=>{
+    if(S.starters.length!==5){toast("Escale 5 titulares antes (botão Escalar)");return;}
+    if(!starterUnits().some(u=>u.role==="GOL")){toast("⚠️ Sem goleiro! Recrute/escale um GOL.");return;}
+    startMatch();
+  };
+}
+
+/* =============================== A PARTIDA =============================== */
+let M=null; // estado da partida
+function startMatch(){
+  S._shop=null;
+  const stage=STAGES[S.stageIdx];
+  const home={name:NATIONS[S.nation].name,crest:NATIONS[S.nation].crest,color:NATIONS[S.nation].color,
+    units:starterUnits(),power:teamPower(starterUnits(),S.nation),nation:S.nation,boss:false};
+  const away=makeEnemy(stage);
+  M={
+    stage,home,away,
+    score:{home:0,away:0}, time:0, pos:50, poss:"home",
+    homeScore:0,awayScore:0, energy:0, momentum:50,
+    stamHome:100,stamAway:100, calor:0, cracks:0,
+    homeMomentumBuff:0, // gols do Sol
+    buffs:{home:{},away:{}}, // táticas temporárias {kind:turnsLeft}
+    speed:1, paused:false, running:false, ended:false,
+  };
+  renderMatch();
+  // pequena contagem antes do apito
+  log("sys",`🏟️ ${home.name} <span class="muted">x</span> ${away.name}`);
+  log("sys","O árbitro aponta para o centro… apito inicial!");
+  M.running=true;
+  scheduleTick();
+}
+
+function matchTeamPower(side){
+  // poder efetivo no momento (com stamina, calor, buffs, relíquias)
+  const isHome=side==="home";
+  const base = isHome?M.home.power:M.away.power;
+  const stam = isHome?M.stamHome:M.stamAway;
+  const staminaFactor = 0.55+0.45*(stam/100); // fôlego afeta tudo
+  const e = isHome?relicEff():{shot:0,velMul:1,gk:1,energy:1,stam:1,atkMul:1};
+  let atk=base.atk*staminaFactor*e.atkMul;
+  let def=base.def*staminaFactor;
+  let ctrl=base.ctrl*staminaFactor;
+  let vel=base.vel*staminaFactor*e.velMul;
+  let gk=base.gk*e.gk;
+  // Sol: momentum acumulado
+  if(isHome && NATIONS[S.nation].passive==="momentum") atk+=M.homeMomentumBuff;
+  // buffs táticos
+  const bf=M.buffs[side];
+  if(bf.atk>0) atk*=2;
+  if(bf.def>0) def*=2;
+  return {atk,def,ctrl,vel,gk};
+}
+
+function scheduleTick(){
+  if(M.ended)return;
+  const delay = M.paused?400 : (M.speed===1?900:M.speed===2?500:280);
+  M._t=setTimeout(()=>{ if(!M.paused && M.running) matchTick(); scheduleTick(); }, delay);
+}
+
+function matchTick(){
+  if(M.ended)return;
+  M.time += ri(2,4);
+  // energia da tática
+  M.energy = clamp(M.energy + 7*relicEff().energy, 0, 100);
+  // stamina / calor
+  const calorDrain = M.calor*0.12;
+  M.stamHome = clamp(M.stamHome - (0.7+calorDrain)*(NATIONS[S.nation].passive==="regen"?0.5:1)*relicEff().stam,0,100);
+  M.stamAway = clamp(M.stamAway - (0.7+calorDrain)* (M.away.nation && NATIONS[M.away.nation].passive==="regen"?0.6:1),0,100);
+  // Sentinela das Marés / regen relics handled via passive flag on units
+  if(starterUnits().some(u=>u.pa==="regen")) M.stamHome=clamp(M.stamHome+0.6,0,100);
+  // expira buffs
+  for(const side of ["home","away"]) for(const k in M.buffs[side]){M.buffs[side][k]--; if(M.buffs[side][k]<=0) delete M.buffs[side][k];}
+
+  const atkSide=M.poss, defSide=M.poss==="home"?"away":"home";
+  const A=matchTeamPower(atkSide), D=matchTeamPower(defSide);
+
+  // roubo de posse (Brumas / Maestro / Véu)
+  const stealUnits=(defSide==="home"?starterUnits():M.away.units);
+  const hasSteal = stealUnits.some(u=>u.pa==="steal") || (defSide==="home"&&NATIONS[S.nation].passive==="steal");
+  let stealCh=0.06 + D.ctrl*0.003;
+  if(hasSteal) stealCh+=0.05;
+  if(M.buffs[defSide].steal>0) stealCh+=0.5;
+  if(Math.random()<stealCh){
+    flipPossession(defSide,"🌫️ Roubada! "+teamLabel(defSide)+" intercepta no controle.");
+    updateMatchUI();return;
+  }
+
+  // avanço da bola
+  const dir = atkSide==="home"?1:-1;
+  const push = 4 + (A.atk+A.ctrl*0.5+A.vel*0.4 - D.def*0.8)*0.55 + rnd(-3,5);
+  M.pos = clamp(M.pos + dir*Math.max(1,push), 4, 96);
+  // momentum visual
+  M.momentum = clamp(M.momentum + dir*rnd(1,4), 5, 95);
+
+  // contra-ataque (Tormentas / Lâmina / counter buff)
+  const counterUnits=(atkSide==="home"?starterUnits():M.away.units);
+  const hasCounter=counterUnits.some(u=>u.pa==="counter")||(atkSide==="home"&&NATIONS[S.nation].passive==="counter");
+  if((M.buffs[atkSide].counter>0) || (hasCounter && Math.random()<0.05)){
+    // chega direto à área
+    M.pos = atkSide==="home"?clamp(88+rnd(0,6),0,96):clamp(12-rnd(0,6),4,100);
+    if(M.buffs[atkSide].counter>0) log("sys","⚡ "+teamLabel(atkSide)+": contra-ataque relâmpago!");
+  }
+
+  // finalização ao chegar na área
+  const inBox = atkSide==="home"? M.pos>=86 : M.pos<=14;
+  if(inBox && Math.random()<0.62){
+    attemptShot(atkSide,defSide,A,D);
+  } else if(Math.random()<0.10){
+    flipPossession(defSide,"🔁 "+teamLabel(defSide)+" recupera a bola.","turn");
+  }
+
+  if(M.time>=90){ endRegulation(); return; }
+  updateMatchUI();
+}
+
+function attemptShot(atkSide,defSide,A,D){
+  const shooters=(atkSide==="home"?starterUnits():M.away.units).filter(u=>u.role==="ATA");
+  const shooter=shooters.length?pick(shooters):null;
+  const e=relicEff();
+  let shotQ = A.atk*1.1 + (shooter?shooter.stats.atk:0) + rnd(0,12);
+  if(atkSide==="home") shotQ += shotQ*e.shot; // Bola de Âmbar
+  let saveQ = D.gk*1.6 + D.def*0.4 + rnd(0,10);
+  // Goleira de Cristal: defende muito, mas trinca
+  const gkCristal=(defSide==="home"?starterUnits():M.away.units).some(u=>u.pa==="cristal");
+  if(gkCristal){
+    const cracks = defSide==="home"?M.cracks:0;
+    saveQ += 14 - cracks*3; // começa altíssimo, cai a cada defesa
+  }
+  log("e",`${atkSide==="home"?"⚽":"🔸"} ${teamLabel(atkSide)} finaliza${shooter?` com ${shooter.ic} ${shooter.a}`:""}…`);
+  if(shotQ>saveQ){
+    goal(atkSide,shooter);
+  } else {
+    log("save",`🧤 Defesa${gkCristal?" da Goleira de Cristal — o cristal trinca!":"!"} de ${teamLabel(defSide)}.`);
+    if(gkCristal && defSide==="home") M.cracks++;
+    flipPossession(defSide,null);
+  }
+}
+
+function goal(side,shooter){
+  M.score[side]++;
+  log("goal",`⚽ GOOOL de ${teamLabel(side)}! ${shooter?shooter.ic+" "+shooter.a:""} balança a rede. (${M.score.home} x ${M.score.away})`);
+  // Sol / Aríete: momentum
+  if(side==="home" && (NATIONS[S.nation].passive==="momentum"||starterUnits().some(u=>u.pa==="momentum"))){
+    M.homeMomentumBuff+=3; log("sys","🔆 O Sol Eterno arde: +ataque permanente nesta partida.");
+  }
+  // Centroavante de Fogo: calor
+  const fireSide=(side==="home"?starterUnits():M.away.units).some(u=>u.pa==="calor");
+  if(fireSide){ M.calor+=2; log("sys","🔥 O calor do campo aumenta — o fôlego dos dois times queima mais rápido."); }
+  // saída de bola para o lado que sofreu
+  flipPossession(side==="home"?"away":"home",null);
+  M.pos=50; M.momentum=50;
+}
+
+function flipPossession(toSide,msg,cls){
+  M.poss=toSide;
+  M.pos = toSide==="home"?clamp(M.pos-rnd(8,18),20,50):clamp(M.pos+rnd(8,18),50,80);
+  if(msg) log(cls||"turn",msg);
+}
+function teamLabel(side){return side==="home"?M.home.name.split(" ").slice(-1):M.away.name;}
+
+/* ----------------------------- FIM DE JOGO -------------------------------- */
+function endRegulation(){
+  M.running=false;
+  if(M.score.home===M.score.away){
+    if(M.stage.ko){
+      log("sys","⏱️ Fim do tempo normal — empate! Vamos para os <b>pênaltis</b>…");
+      setTimeout(penalties,900);
+      return;
+    }
+  }
+  finishMatch(M.score.home>=M.score.away ? (M.score.home>M.score.away?"home": (M.stage.ko?"away":"draw")) : "away");
+}
+function penalties(){
+  const hp=matchTeamPower("home"), ap=matchTeamPower("away");
+  let h=0,a=0;
+  for(let i=0;i<5;i++){
+    if(Math.random()< clamp(0.5+ (hp.atk-ap.gk*1.4)*0.01,0.25,0.85)) h++;
+    if(Math.random()< clamp(0.5+ (ap.atk-hp.gk*1.4)*0.01,0.25,0.85)) a++;
+  }
+  if(h===a){ h+=Math.random()<0.5?1:0; a=h===a?a+1:a; } // desempate simples
+  log("sys",`🥅 Pênaltis: ${M.home.name.split(" ").slice(-1)} ${h} x ${a} ${M.away.name}`);
+  finishMatch(h>a?"home":"away");
+}
+function finishMatch(result){
+  M.ended=true; clearTimeout(M._t);
+  const won = result==="home";
+  const drew = result==="draw";
+  updateMatchUI();
+  setTimeout(()=>screenResult(won,drew),700);
+}
+
+/* ----------------------------- RENDER PARTIDA ----------------------------- */
+function renderMatch(){
+  clear();
+  const t=NATIONS[S.nation].tactic;
+  app.innerHTML=topbar()+`<div class="screen">
+    <div class="scoreboard">
+      <div class="tn">${M.home.crest}<br>${M.home.name.split(" ").slice(-2).join(" ")}</div>
+      <div><span id="sH">0</span><span class="muted"> : </span><span id="sA">0</span></div>
+      <div class="tn">${M.away.crest}<br>${M.away.name}</div>
+    </div>
+    <div class="center"><span class="clock" id="clk">0'</span></div>
+    <div id="field">
+      <div class="crowd top"></div><div class="crowd bot"></div>
+      <div class="area l"></div><div class="area r"></div>
+      <div class="midline"></div><div class="circle"></div>
+      <div class="goal l"></div><div class="goal r"></div>
+      <div id="ball"></div>
+    </div>
+    <div style="margin:10px 0 4px;font-size:12px;display:flex;justify-content:space-between">
+      <span class="good">◀ ${M.home.name.split(" ").slice(-1)}</span>
+      <span class="muted">posse de bola</span>
+      <span style="color:${M.away.color}">${M.away.name} ▶</span>
+    </div>
+    <div class="momentum"><div id="mom" style="width:50%"></div></div>
+
+    <div class="card" style="margin-top:12px;padding:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span>⚡ Energia tática</span>
+        <span class="muted">Fôlego: <span id="stam">100</span>%  ·  🔥<span id="cal">0</span></span>
+      </div>
+      <div class="energybar"><div id="enr" style="width:0%"></div></div>
+      <div class="tactics">
+        <button class="btn tactic" id="tSig" style="border-color:${NATIONS[S.nation].color}">${t.name}<small>🪙${t.cost} energia</small></button>
+        <button class="btn tactic" id="tPress">Pressão Total<small>🪙40 · +ataque</small></button>
+        <button class="btn tactic" id="tDef">Retranca<small>🪙40 · +defesa</small></button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;align-items:center;justify-content:space-between">
+      <div class="speedctl">
+        <button class="btn seg" id="pause">⏸</button>
+        <button class="btn seg" id="s1">1×</button>
+        <button class="btn seg on" id="s2">2×</button>
+        <button class="btn seg" id="s3">3×</button>
+      </div>
+      <button class="btn ghost" id="skip">Simular ⏩</button>
+    </div>
+    <div id="log" style="margin-top:10px"></div>
+  </div>`;
+  M.speed=2;
+  $("#tSig").onclick=()=>useTactic("sig");
+  $("#tPress").onclick=()=>useTactic("press");
+  $("#tDef").onclick=()=>useTactic("def");
+  $("#pause").onclick=()=>{M.paused=!M.paused;$("#pause").textContent=M.paused?"▶":"⏸";};
+  $("#s1").onclick=()=>setSpeed(1);$("#s2").onclick=()=>setSpeed(2);$("#s3").onclick=()=>setSpeed(3);
+  $("#skip").onclick=()=>{M.speed=3;M.paused=false;
+    // acelera bastante simulando até o fim
+    const fast=()=>{ if(M.ended)return; if(M.running)matchTick(); if(!M.ended)setTimeout(fast,60); };
+    clearTimeout(M._t);fast();$("#skip").disabled=true;};
+  updateMatchUI();
+}
+function setSpeed(s){M.speed=s;M.paused=false;$("#pause").textContent="⏸";
+  ["s1","s2","s3"].forEach(x=>$("#"+x).classList.remove("on"));$("#s"+s).classList.add("on");}
+
+function useTactic(which){
+  if(M.ended||!M.running)return;
+  let cost, kind, msg;
+  if(which==="sig"){const t=NATIONS[S.nation].tactic;cost=t.cost;
+    if(M.energy<cost){toast("Energia insuficiente");return;}
+    if(t.kind==="atk"){M.buffs.home.atk=t.dur;}
+    else if(t.kind==="def"){M.buffs.home.def=t.dur;M.stamAway=clamp(M.stamAway-15,0,100);}
+    else if(t.kind==="steal"){M.buffs.home.steal=t.dur;}
+    else if(t.kind==="counter"){M.buffs.home.counter=t.dur;}
+    msg=`✨ TÁTICA: ${t.name}!`;
+  } else if(which==="press"){cost=40;if(M.energy<cost){toast("Energia insuficiente");return;}
+    M.buffs.home.atk=2;msg="🔺 Pressão Total — ataque reforçado!";
+  } else {cost=40;if(M.energy<cost){toast("Energia insuficiente");return;}
+    M.buffs.home.def=2;msg="🔻 Retranca — defesa reforçada!";}
+  M.energy-=cost;log("sys",msg);updateMatchUI();
+}
+
+function updateMatchUI(){
+  if(!M)return;
+  const sH=$("#sH"),sA=$("#sA");if(sH)sH.textContent=M.score.home;if(sA)sA.textContent=M.score.away;
+  const clk=$("#clk");if(clk)clk.textContent=Math.min(90,M.time)+"'";
+  const ball=$("#ball");if(ball){ball.style.left=M.pos+"%";
+    ball.style.top=(50+rnd(-22,22))+"%";}
+  const mom=$("#mom");if(mom)mom.style.width=M.momentum+"%";
+  const enr=$("#enr");if(enr)enr.style.width=M.energy+"%";
+  const stam=$("#stam");if(stam)stam.textContent=Math.round(M.stamHome);
+  const cal=$("#cal");if(cal)cal.textContent=M.calor;
+  // habilita/desabilita táticas
+  const t=NATIONS[S.nation].tactic;
+  const tSig=$("#tSig");if(tSig)tSig.disabled=M.energy<t.cost;
+  const tP=$("#tPress");if(tP)tP.disabled=M.energy<40;
+  const tD=$("#tDef");if(tD)tD.disabled=M.energy<40;
+}
+function log(cls,html){
+  const box=$("#log");if(!box)return;
+  const d=document.createElement("div");d.className="e "+(cls||"");d.innerHTML=html;
+  box.appendChild(d);box.scrollTop=box.scrollHeight;
+}
+
+/* ------------------------------- RESULTADO -------------------------------- */
+function screenResult(won,drew){
+  clear();
+  const stage=M.stage;
+  let gold=0, advance=false, eliminated=false, champion=false;
+  if(won){
+    gold = stage.reward;
+    S.gold+=gold;
+    if(stage.boss){champion=true;}
+    else advance=true;
+  } else if(drew && !stage.ko){
+    gold = Math.floor(stage.reward/2); S.gold+=gold; advance=true;
+  } else {
+    eliminated=true;
+  }
+  S.history.push({stage:stage.name,score:`${M.score.home}-${M.score.away}`,won});
+
+  const head = champion?`<div style="font-size:64px">🏆</div><h1 class="gold">CAMPEÕES IMORTAIS!</h1>`
+    : won?`<div style="font-size:54px">✅</div><h2 class="good">Vitória!</h2>`
+    : drew&&!stage.ko?`<div style="font-size:54px">🤝</div><h2>Empate — avança na fase de grupos</h2>`
+    : `<div style="font-size:54px">💀</div><h2 class="bad">Eliminado</h2>`;
+
+  let body="";
+  if(champion){
+    body=`<p class="center">Sua seleção venceu a <b>Seleção Imortal</b> e reinará pelos próximos mil anos.</p>`;
+  } else if(eliminated){
+    body=`<p class="center">A jornada termina aqui. As brumas do tempo reclamam sua seleção.</p>`;
+  }
+
+  const summary=`<div class="card" style="margin-top:12px">
+    <h3>Súmula</h3>
+    <p>${M.home.name} <b>${M.score.home} x ${M.score.away}</b> ${M.away.name}</p>
+    ${gold?`<p class="gold">+🪙 ${gold} Ouro Místico</p>`:""}
+    <p class="muted" style="font-size:12px">Caminho: ${S.history.map(h=>h.won?"🟢":"🔴").join(" ")}</p>
+  </div>`;
+
+  let btns="";
+  if(advance){btns=`<button class="btn primary full" id="next" style="margin-top:14px">Avançar na Copa →</button>`;}
+  else {btns=`<button class="btn primary full" id="again" style="margin-top:14px">↻ Nova corrida</button>`;}
+
+  app.innerHTML=`<div class="screen center" style="padding-top:4vh">${head}${body}${summary}${btns}</div>`;
+  if(advance){$("#next").onclick=()=>{S.stageIdx++;M=null;screenHub();};}
+  else{$("#again").onclick=()=>{S=null;M=null;screenTitle();};}
+}
+
+/* --------------------------------- BOOT ----------------------------------- */
+screenTitle();
+</script>
+</body>
+</html>
