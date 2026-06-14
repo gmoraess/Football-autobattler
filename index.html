@@ -370,7 +370,7 @@ function screenTitle(){
       <button class="btn primary full" id="start">▶  Iniciar Corrida</button>
       <button class="btn ghost full" id="how">Como jogar</button>
     </div>
-    <p class="muted" style="margin-top:26px;font-size:12px">MVP de validação · v0.1</p>
+    <p class="muted" style="margin-top:26px;font-size:12px">MVP de validação · v0.2 — partida com física</p>
   </div>`;
   $("#start").onclick=screenNation;
   $("#how").onclick=screenHow;
@@ -383,8 +383,8 @@ function screenHow(){
       <p><b class="gold">1. Escolha sua nação</b> — define identidade, elenco inicial e a sua tática-assinatura.</p>
       <p><b class="gold">2. Suba na Copa</b> — Fase de Grupos → Oitavas → Quartas → Semi → <b>Final</b> (chefe). Perder no mata-mata encerra a corrida.</p>
       <p><b class="gold">3. Entre as partidas</b> — gaste 🪙 Ouro Místico na <b>loja de transferências</b> (novos jogadores) e em <b>relíquias</b> (bônus permanentes). Escale seus 5 titulares.</p>
-      <p><b class="gold">4. Na partida</b> — a simulação roda sozinha; você ativa <b>táticas</b> nos momentos-chave gastando energia. As habilidades dos jogadores agem sozinhas.</p>
-      <p class="muted">Elenco reduzido: cada jogador é uma unidade com peso real. Arquétipos têm mecânicas próprias (o Centroavante de Fogo esquenta o campo, a Goleira de Cristal trinca a cada defesa, o Meia Ancião potencializa os colegas…).</p>
+      <p><b class="gold">4. Na partida</b> — a física roda sozinha (autobattler assistível). A <b>bola é um projétil</b>: chutes fortes que acertam um jogador <b>tiram fôlego</b> dele — e quem zera o fôlego <b>cai</b>, deixando o time com um a menos. Você intervém nos momentos-chave gastando energia: <b>tática-assinatura</b>, <b>🎯 Chute de Poder</b> (manda seu artilheiro carregar um chute devastador) e <b>💚 Reforço de Fôlego</b> (recupera e reanima os caídos).</p>
+      <p class="muted">Fôlego = vida: cai com o tempo e ao tomar impacto da bola. Elenco reduzido, cada jogador uma unidade com peso real e mecânica própria (o Centroavante de Fogo esquenta o campo, a Goleira de Cristal trinca a cada defesa, o Meia Ancião potencializa os colegas…). Builds e até inimigos podem mirar o fôlego da sua peça-chave — proteja-a.</p>
     </div>
     <button class="btn full" style="margin-top:14px" id="back">Voltar</button>
   </div>`;
@@ -558,191 +558,398 @@ function screenPrep(){
   };
 }
 
-/* =============================== A PARTIDA =============================== */
-let M=null; // estado da partida
+/* ================== A PARTIDA — MOTOR DE FÍSICA 2D (canvas) ================
+   Bola como projétil real, stamina como vida (cai com o tempo e ao ser
+   atingida pela bola), chutes de poder com VFX, jogadores que "caem" e
+   deixam o time com um a menos. Estilo autobattler assistível: a física roda
+   sozinha; o técnico intervém em 2-3 momentos-chave (táticas + chute de poder).
+   ========================================================================= */
+let M=null;
+const FW=600, FH=340;
+const GLINE=8, GMH=140, MT=(FH-GMH)/2, MB=(FH+GMH)/2;   // boca do gol
+const PR=13, BR=7;
+const TIMESCALE=2.0;        // minutos de jogo por segundo real (1x) -> ~45s/partida
+const ENRATE=15;           // energia tática por segundo
+const SHOOTDIST=255;
+const CTRL_R=20, CTRL_SPD=70, STOPSPD=22;
+const NORMAL_SHOT=250, POWER_SHOT=405, MAXBALLSPD=440;
+const CHARGE_DUR=0.6, DRAIN=0.8, STUNTIME=3.2;
+
+const opp = t => t==="home"?"away":"home";
+function teamLabel(side){return side==="home"?M.home.name.split(" ").slice(-1):M.away.name;}
+
+function computeHp(u,mul){
+  const rb = u.role==="GOL"?60:u.role==="DEF"?28:u.role==="MEI"?8:0;
+  return Math.round((55 + u.stats.def*7 + rb)*mul);
+}
+function mkPlayer(u,team,x,y,mul){
+  const m = team==="away"?mul:1;
+  const hp = computeHp(u,m);
+  return {unit:u,team,role:u.role,x,y,sx:x,sy:y,ax:x,ay:y,vx:0,vy:0,kvx:0,kvy:0,
+    maxHp:hp,hp, stun:0, charging:false, chargeT:0, isPowerShooter:false,
+    spd:(72+u.stats.vel*7)*(team==="away"?(0.9+mul*0.1):1), atk:u.stats.atk};
+}
+function spawnTeam(units,team,mul){
+  const byRole={GOL:[],DEF:[],MEI:[],ATA:[]};
+  units.forEach(u=>(byRole[u.role]||byRole.MEI).push(u));
+  const bx={GOL:0.07,DEF:0.25,MEI:0.43,ATA:0.62};
+  const arr=[];
+  for(const role in byRole){
+    const list=byRole[role];
+    list.forEach((u,i)=>{
+      const fy=list.length===1?0.5:0.27+0.46*(i/(list.length-1));
+      let fx=bx[role]!==undefined?bx[role]:0.43;
+      if(team==="away") fx=1-fx;
+      arr.push(mkPlayer(u,team,fx*FW,fy*FH,mul));
+    });
+  }
+  return arr;
+}
+
 function startMatch(){
   S._shop=null;
   const stage=STAGES[S.stageIdx];
-  const home={name:NATIONS[S.nation].name,crest:NATIONS[S.nation].crest,color:NATIONS[S.nation].color,
-    units:starterUnits(),power:teamPower(starterUnits(),S.nation),nation:S.nation,boss:false};
+  const homeUnits=starterUnits();
   const away=makeEnemy(stage);
+  const mul=stage.diff;
   M={
-    stage,home,away,
-    score:{home:0,away:0}, time:0, pos:50, poss:"home",
-    homeScore:0,awayScore:0, energy:0, momentum:50,
-    stamHome:100,stamAway:100, calor:0, cracks:0,
-    homeMomentumBuff:0, // gols do Sol
-    buffs:{home:{},away:{}}, // táticas temporárias {kind:turnsLeft}
-    speed:1, paused:false, running:false, ended:false,
+    stage,
+    home:{name:NATIONS[S.nation].name,crest:NATIONS[S.nation].crest,color:NATIONS[S.nation].color,nation:S.nation,units:homeUnits},
+    away:{name:away.name,crest:away.crest,color:away.color,nation:away.nation,units:away.units},
+    players:[...spawnTeam(homeUnits,"home",1),...spawnTeam(away.units,"away",mul)],
+    ball:{x:FW/2,y:FH/2,vx:0,vy:0,owner:null,lastTouch:"home",powered:false,trail:[],col:"#fff",shotAtk:5},
+    score:{home:0,away:0}, time:0, energy:25, calor:0, cracks:0, momHome:0,
+    buffs:{home:{},away:{}}, cmdPower:false, shotCd:0, shake:0, hitstop:0, vfx:[],
+    speed:2, paused:false, ended:false, running:true, last:0, ctx:null, canvas:null,
   };
   renderMatch();
-  // pequena contagem antes do apito
-  log("sys",`🏟️ ${home.name} <span class="muted">x</span> ${away.name}`);
-  log("sys","O árbitro aponta para o centro… apito inicial!");
-  M.running=true;
-  scheduleTick();
+  log("sys",`🏟️ ${M.home.name} <span class="muted">x</span> ${M.away.name}`);
+  log("sys","Apito inicial! A bola é um projétil — chutes fortes ferem o fôlego de quem for atingido.");
+  M.raf=requestAnimationFrame(matchLoop);
 }
 
-function matchTeamPower(side){
-  // poder efetivo no momento (com stamina, calor, buffs, relíquias)
-  const isHome=side==="home";
-  const base = isHome?M.home.power:M.away.power;
-  const stam = isHome?M.stamHome:M.stamAway;
-  const staminaFactor = 0.55+0.45*(stam/100); // fôlego afeta tudo
-  const e = isHome?relicEff():{shot:0,velMul:1,gk:1,energy:1,stam:1,atkMul:1};
-  let atk=base.atk*staminaFactor*e.atkMul;
-  let def=base.def*staminaFactor;
-  let ctrl=base.ctrl*staminaFactor;
-  let vel=base.vel*staminaFactor*e.velMul;
-  let gk=base.gk*e.gk;
-  // Sol: momentum acumulado
-  if(isHome && NATIONS[S.nation].passive==="momentum") atk+=M.homeMomentumBuff;
-  // buffs táticos
-  const bf=M.buffs[side];
-  if(bf.atk>0) atk*=2;
-  if(bf.def>0) def*=2;
-  return {atk,def,ctrl,vel,gk};
+function matchLoop(ts){
+  if(!M||M.ended)return;
+  const now=ts/1000; if(!M.last)M.last=now;
+  let dt=now-M.last; M.last=now; dt=Math.min(dt,0.05);
+  if(!M.paused){
+    if(M.hitstop>0){ M.hitstop-=dt; }
+    else { physicsStep(dt*M.speed); }
+    updateVfx(dt*M.speed);
+    if(M.shake>0.3) M.shake*=Math.pow(0.004,dt);
+  }
+  draw();
+  if(!M.ended) M.raf=requestAnimationFrame(matchLoop);
 }
 
-function scheduleTick(){
-  if(M.ended)return;
-  const delay = M.paused?400 : (M.speed===1?900:M.speed===2?500:280);
-  M._t=setTimeout(()=>{ if(!M.paused && M.running) matchTick(); scheduleTick(); }, delay);
+/* ------------------------------ FÍSICA ----------------------------------- */
+function nearestOutfield(team){
+  let best=null,bd=1e9;
+  for(const p of M.players){ if(p.team!==team||p.role==="GOL"||p.stun>0)continue;
+    const d=Math.hypot(p.x-M.ball.x,p.y-M.ball.y); if(d<bd){bd=d;best=p;} }
+  return best;
 }
+function topAttacker(team){
+  let best=null,ba=-1;
+  for(const p of M.players){ if(p.team!==team||p.role==="GOL"||p.stun>0)continue;
+    if(p.atk>ba){ba=p.atk;best=p;} }
+  if(!best) for(const p of M.players){ if(p.team===team&&p.stun<=0){best=p;break;} }
+  return best;
+}
+function applyKnock(p,sdt){ p.x+=p.kvx*sdt; p.y+=p.kvy*sdt; const f=Math.pow(0.02,sdt); p.kvx*=f; p.kvy*=f; }
 
-function matchTick(){
-  if(M.ended)return;
-  M.time += ri(2,4);
-  // energia da tática
-  M.energy = clamp(M.energy + 7*relicEff().energy, 0, 100);
-  // stamina / calor
-  const calorDrain = M.calor*0.12;
-  M.stamHome = clamp(M.stamHome - (0.7+calorDrain)*(NATIONS[S.nation].passive==="regen"?0.5:1)*relicEff().stam,0,100);
-  M.stamAway = clamp(M.stamAway - (0.7+calorDrain)* (M.away.nation && NATIONS[M.away.nation].passive==="regen"?0.6:1),0,100);
-  // Sentinela das Marés / regen relics handled via passive flag on units
-  if(starterUnits().some(u=>u.pa==="regen")) M.stamHome=clamp(M.stamHome+0.6,0,100);
-  // expira buffs
-  for(const side of ["home","away"]) for(const k in M.buffs[side]){M.buffs[side][k]--; if(M.buffs[side][k]<=0) delete M.buffs[side][k];}
+function physicsStep(sdt){
+  const b=M.ball;
+  M.time += sdt*TIMESCALE;
+  M.energy = clamp(M.energy + sdt*ENRATE*relicEff().energy,0,100);
+  M.shotCd = Math.max(0,M.shotCd-sdt);
+  for(const side of ["home","away"]) for(const k in M.buffs[side]){ M.buffs[side][k]-=sdt; if(M.buffs[side][k]<=0) delete M.buffs[side][k]; }
 
-  const atkSide=M.poss, defSide=M.poss==="home"?"away":"home";
-  const A=matchTeamPower(atkSide), D=matchTeamPower(defSide);
-
-  // roubo de posse (Brumas / Maestro / Véu)
-  const stealUnits=(defSide==="home"?starterUnits():M.away.units);
-  const hasSteal = stealUnits.some(u=>u.pa==="steal") || (defSide==="home"&&NATIONS[S.nation].passive==="steal");
-  let stealCh=0.06 + D.ctrl*0.003;
-  if(hasSteal) stealCh+=0.05;
-  if(M.buffs[defSide].steal>0) stealCh+=0.5;
-  if(Math.random()<stealCh){
-    flipPossession(defSide,"🌫️ Roubada! "+teamLabel(defSide)+" intercepta no controle.");
-    updateMatchUI();return;
+  // stamina/vida: dreno passivo, calor, regen, recuperação de queda
+  const calorF=1+M.calor*0.15;
+  const homeRegen = NATIONS[S.nation].passive==="regen" || starterUnits().some(u=>u.pa==="regen");
+  for(const p of M.players){
+    if(p.stun>0){ p.stun-=sdt; if(p.stun<=0) p.hp=p.maxHp*0.4; continue; }
+    let drain=DRAIN*calorF;
+    if(p.team==="home"&&homeRegen) drain*=0.4;
+    if(p.team==="away"&&M.buffs.home.drain>0) drain*=2.2;
+    p.hp-=drain*sdt;
+    if(p.hp<=0){ p.hp=0; p.stun=STUNTIME; p.charging=false; p.chargeT=0;
+      spawnBurst(p.x,p.y,"#ff6b6b",10);
+      log("turn",`💥 ${p.unit.ic} ${p.unit.a} caiu sem fôlego — ${teamLabel(p.team)} com um a menos!`); }
   }
 
-  // avanço da bola
-  const dir = atkSide==="home"?1:-1;
-  const push = 4 + (A.atk+A.ctrl*0.5+A.vel*0.4 - D.def*0.8)*0.55 + rnd(-3,5);
-  M.pos = clamp(M.pos + dir*Math.max(1,push), 4, 96);
-  // momentum visual
-  M.momentum = clamp(M.momentum + dir*rnd(1,4), 5, 95);
-
-  // contra-ataque (Tormentas / Lâmina / counter buff)
-  const counterUnits=(atkSide==="home"?starterUnits():M.away.units);
-  const hasCounter=counterUnits.some(u=>u.pa==="counter")||(atkSide==="home"&&NATIONS[S.nation].passive==="counter");
-  if((M.buffs[atkSide].counter>0) || (hasCounter && Math.random()<0.05)){
-    // chega direto à área
-    M.pos = atkSide==="home"?clamp(88+rnd(0,6),0,96):clamp(12-rnd(0,6),4,100);
-    if(M.buffs[atkSide].counter>0) log("sys","⚡ "+teamLabel(atkSide)+": contra-ataque relâmpago!");
+  // dono da bola (controle quando lenta e alguém perto)
+  if(b.owner && b.owner.stun>0) b.owner=null;
+  if(!b.owner && Math.hypot(b.vx,b.vy)<CTRL_SPD){
+    let best=null,bd=CTRL_R+6;
+    for(const p of M.players){ if(p.stun>0)continue; const d=Math.hypot(p.x-b.x,p.y-b.y); if(d<bd){bd=d;best=p;} }
+    if(best){ b.owner=best; b.lastTouch=best.team; b.powered=false; }
   }
+  const chaser={home:nearestOutfield("home"),away:nearestOutfield("away")};
 
-  // finalização ao chegar na área
-  const inBox = atkSide==="home"? M.pos>=86 : M.pos<=14;
-  if(inBox && Math.random()<0.62){
-    attemptShot(atkSide,defSide,A,D);
-  } else if(Math.random()<0.10){
-    flipPossession(defSide,"🔁 "+teamLabel(defSide)+" recupera a bola.","turn");
-  }
-
-  if(M.time>=90){ endRegulation(); return; }
-  updateMatchUI();
-}
-
-function attemptShot(atkSide,defSide,A,D){
-  const shooters=(atkSide==="home"?starterUnits():M.away.units).filter(u=>u.role==="ATA");
-  const shooter=shooters.length?pick(shooters):null;
-  const e=relicEff();
-  let shotQ = A.atk*1.1 + (shooter?shooter.stats.atk:0) + rnd(0,12);
-  if(atkSide==="home") shotQ += shotQ*e.shot; // Bola de Âmbar
-  let saveQ = D.gk*1.6 + D.def*0.4 + rnd(0,10);
-  // Goleira de Cristal: defende muito, mas trinca
-  const gkCristal=(defSide==="home"?starterUnits():M.away.units).some(u=>u.pa==="cristal");
-  if(gkCristal){
-    const cracks = defSide==="home"?M.cracks:0;
-    saveQ += 14 - cracks*3; // começa altíssimo, cai a cada defesa
-  }
-  log("e",`${atkSide==="home"?"⚽":"🔸"} ${teamLabel(atkSide)} finaliza${shooter?` com ${shooter.ic} ${shooter.a}`:""}…`);
-  if(shotQ>saveQ){
-    goal(atkSide,shooter);
-  } else {
-    log("save",`🧤 Defesa${gkCristal?" da Goleira de Cristal — o cristal trinca!":"!"} de ${teamLabel(defSide)}.`);
-    if(gkCristal && defSide==="home") M.cracks++;
-    flipPossession(defSide,null);
-  }
-}
-
-function goal(side,shooter){
-  M.score[side]++;
-  log("goal",`⚽ GOOOL de ${teamLabel(side)}! ${shooter?shooter.ic+" "+shooter.a:""} balança a rede. (${M.score.home} x ${M.score.away})`);
-  // Sol / Aríete: momentum
-  if(side==="home" && (NATIONS[S.nation].passive==="momentum"||starterUnits().some(u=>u.pa==="momentum"))){
-    M.homeMomentumBuff+=3; log("sys","🔆 O Sol Eterno arde: +ataque permanente nesta partida.");
-  }
-  // Centroavante de Fogo: calor
-  const fireSide=(side==="home"?starterUnits():M.away.units).some(u=>u.pa==="calor");
-  if(fireSide){ M.calor+=2; log("sys","🔥 O calor do campo aumenta — o fôlego dos dois times queima mais rápido."); }
-  // saída de bola para o lado que sofreu
-  flipPossession(side==="home"?"away":"home",null);
-  M.pos=50; M.momentum=50;
-}
-
-function flipPossession(toSide,msg,cls){
-  M.poss=toSide;
-  M.pos = toSide==="home"?clamp(M.pos-rnd(8,18),20,50):clamp(M.pos+rnd(8,18),50,80);
-  if(msg) log(cls||"turn",msg);
-}
-function teamLabel(side){return side==="home"?M.home.name.split(" ").slice(-1):M.away.name;}
-
-/* ----------------------------- FIM DE JOGO -------------------------------- */
-function endRegulation(){
-  M.running=false;
-  if(M.score.home===M.score.away){
-    if(M.stage.ko){
-      log("sys","⏱️ Fim do tempo normal — empate! Vamos para os <b>pênaltis</b>…");
-      setTimeout(penalties,900);
-      return;
+  // movimento dos jogadores (IA simples de formação + perseguição)
+  for(const p of M.players){
+    if(p.stun>0){ p.vx=p.vy=0; applyKnock(p,sdt); continue; }
+    let tx,ty;
+    const oppGoalX=p.team==="home"?FW-GLINE:GLINE;
+    const ownGoalX=p.team==="home"?GLINE:FW-GLINE;
+    if(p.role==="GOL"){ tx=ownGoalX+(p.team==="home"?18:-18); ty=clamp(b.y,MT+12,MB-12); }
+    else if(b.owner&&b.owner.team===p.team){
+      if(p===b.owner){ tx=oppGoalX; ty=FH/2+(b.y-FH/2)*0.5; }
+      else { tx=p.ax+(p.team==="home"?72:-72); ty=p.ay*0.6+b.y*0.4; }
+    } else if(b.owner&&b.owner.team!==p.team){
+      if(p===chaser[p.team]){ tx=b.owner.x; ty=b.owner.y; }
+      else { tx=p.ax-(p.team==="home"?22:-22); ty=p.ay*0.5+b.y*0.5; }
+    } else {
+      if(p===chaser[p.team]){ tx=b.x; ty=b.y; } else { tx=p.ax; ty=p.ay*0.6+b.y*0.4; }
     }
+    let spd=p.spd*(0.5+0.5*p.hp/p.maxHp);
+    if(p.team==="home"&&M.buffs.home.haste>0) spd*=1.6;
+    if(p.team==="away"&&M.buffs.away.slow>0) spd*=0.5;
+    const dx=tx-p.x,dy=ty-p.y,d=Math.hypot(dx,dy)||1;
+    if(d>3){ p.x+=dx/d*spd*sdt; p.y+=dy/d*spd*sdt; }
+    applyKnock(p,sdt);
+    p.x=clamp(p.x,BR,FW-BR); p.y=clamp(p.y,8,FH-8);
   }
-  finishMatch(M.score.home>=M.score.away ? (M.score.home>M.score.away?"home": (M.stage.ko?"away":"draw")) : "away");
+
+  // bola: presa ao dono (drible/chute) ou em voo (projétil)
+  if(b.owner){
+    const o=b.owner;
+    const gx=(o.team==="home"?FW-GLINE:GLINE)-o.x, gy=FH/2-o.y, gd=Math.hypot(gx,gy)||1;
+    b.x=o.x+gx/gd*(PR+BR+1); b.y=o.y+gy/gd*(PR+BR+1); b.vx=0; b.vy=0;
+    if(o.isPowerShooter&&!o.charging){ o.charging=true; o.chargeT=0; log("sys",`✨ ${o.unit.ic} ${o.unit.a} carrega um CHUTE DE PODER!`); }
+    if(o.charging){ o.chargeT+=sdt; if(o.chargeT>=CHARGE_DUR) releaseShot(o,true); }
+    else if(o.role==="GOL"){ if(M.shotCd<=0) releaseShot(o,false,true); }
+    else {
+      const distGoal=Math.hypot((o.team==="home"?FW-GLINE:GLINE)-o.x,FH/2-o.y);
+      const ch=chaser[opp(o.team)];
+      const pressed=ch&&Math.hypot(ch.x-o.x,ch.y-o.y)<26;
+      if(M.shotCd<=0&&distGoal<SHOOTDIST&&(Math.random()<0.045||(pressed&&Math.random()<0.07))) releaseShot(o,false);
+      else if(pressed&&Math.random()<0.025) releaseShot(o,false,true);
+    }
+  } else {
+    integrateBall(sdt);
+  }
+
+  if(M.time>=90&&M.running){ endRegulation(); }
+}
+
+function releaseShot(shooter,powered,isPass){
+  const b=M.ball;
+  let aimX,aimY;
+  if(isPass){ aimX=shooter.team==="home"?FW*0.7:FW*0.3; aimY=clamp(shooter.y+rnd(-60,60),20,FH-20); }
+  else { aimX=shooter.team==="home"?FW-GLINE+4:GLINE-4; aimY=clamp(FH/2+rnd(-(GMH/2-12),GMH/2-12),MT,MB); }
+  aimY+=rnd(-1,1)*(1-shooter.hp/shooter.maxHp)*60;
+  const dx=aimX-shooter.x,dy=aimY-shooter.y,d=Math.hypot(dx,dy)||1;
+  if(shooter.team==="home"&&M.buffs.home.power>0) powered=true;
+  const spd=isPass?185:(powered?POWER_SHOT:NORMAL_SHOT)+shooter.atk*4;
+  b.vx=dx/d*spd; b.vy=dy/d*spd;
+  b.owner=null; b.lastTouch=shooter.team; b.powered=powered&&!isPass; b.trail=[];
+  b.shotAtk=shooter.atk; b.col=powered?shotColor(shooter):"#fff";
+  shooter.charging=false; shooter.chargeT=0;
+  if(shooter.isPowerShooter){ shooter.isPowerShooter=false; M.cmdPower=false; }
+  M.shotCd=isPass?0.3:0.6;
+  if(!isPass&&powered){ spawnBurst(shooter.x,shooter.y,b.col,16); M.shake=Math.max(M.shake,7);
+    log("e",`🔥 ${teamLabel(shooter.team)}: CHUTE DE PODER de ${shooter.unit.ic} ${shooter.unit.a}!`); }
+}
+function shotColor(p){ return p.unit.pa==="calor"?"#ff7b2d":(p.team==="home"?M.home.color:M.away.color); }
+
+function integrateBall(sdt){
+  const b=M.ball;
+  const sp=Math.hypot(b.vx,b.vy);
+  const steps=Math.max(1,Math.ceil(sp*sdt/6)), h=sdt/steps;
+  for(let s=0;s<steps;s++){
+    b.x+=b.vx*h; b.y+=b.vy*h;
+    const fr=Math.pow(0.35,h); b.vx*=fr; b.vy*=fr;
+    if(b.y<BR){ b.y=BR; b.vy=-b.vy*0.7; }
+    if(b.y>FH-BR){ b.y=FH-BR; b.vy=-b.vy*0.7; }
+    if(handleBallCollisions()) return;
+    if(checkGoal()) return;
+  }
+  if(b.powered){ b.trail.push({x:b.x,y:b.y}); if(b.trail.length>14) b.trail.shift(); }
+  if(Math.hypot(b.vx,b.vy)<STOPSPD) b.powered=false;
+}
+
+function handleBallCollisions(){
+  const b=M.ball, sp=Math.hypot(b.vx,b.vy);
+  for(const p of M.players){
+    if(p.stun>0) continue;
+    const dx=p.x-b.x,dy=p.y-b.y,d=Math.hypot(dx,dy);
+    if(d>PR+BR) continue;
+    if(p.team===b.lastTouch) continue;   // a bola passa pelos companheiros
+    const nx=(b.x-p.x)/(d||1), ny=(b.y-p.y)/(d||1);
+    if(p.role==="GOL"){
+      b.vx=Math.abs(b.vx)*(p.team==="home"?1:-1)*0.6+nx*70;
+      b.vy=b.vy*0.4+ny*70; b.powered=false; b.lastTouch=p.team;
+      const chip=sp>200?6:2;
+      if(p.unit.pa==="cristal"){ M.cracks++; p.hp-=chip+M.cracks*2; spawnBurst(p.x,p.y,"#bfe9ff",12);
+        log("save",`🧊 Defesa da Goleira de Cristal — o cristal trinca! (${M.cracks})`); }
+      else { p.hp-=chip; spawnBurst(p.x,p.y,"#8fd6ff",8); log("save",`🧤 Defesaça de ${teamLabel(p.team)}!`); }
+      if(p.hp<=0){ p.hp=0; p.stun=STUNTIME; }
+      M.shake=Math.max(M.shake,sp>250?6:3); M.hitstop=Math.max(M.hitstop,0.05);
+      return false;
+    } else if(sp>170){
+      const e=b.powered;
+      let dmg=(sp/MAXBALLSPD)*34*(e?2.3:1)*(0.7+0.06*(b.shotAtk||5));
+      if(p.team==="home"&&M.buffs.home.shield>0) dmg*=0.5;
+      p.hp-=dmg;
+      p.kvx+=-nx*(e?170:90); p.kvy+=-ny*(e?170:90);
+      b.vx=nx*sp*0.5+rnd(-40,40); b.vy=ny*sp*0.5+rnd(-40,40);
+      b.powered=false; b.lastTouch=p.team;
+      spawnBurst(b.x,b.y,e?"#ff7b2d":"#ffd24a",e?16:8);
+      M.shake=Math.max(M.shake,e?9:4); M.hitstop=Math.max(M.hitstop,e?0.12:0.05);
+      log("e",`💥 ${p.unit.ic} ${p.unit.a} levou o impacto${e?" de um chute de poder":""}! (-${Math.round(dmg)} fôlego)`);
+      if(p.hp<=0){ p.hp=0; p.stun=STUNTIME; p.charging=false; log("turn",`💫 ${p.unit.ic} ${p.unit.a} foi derrubado!`); }
+      return false;
+    } else { b.lastTouch=p.team; return false; }
+  }
+  return false;
+}
+
+function checkGoal(){
+  const b=M.ball;
+  if(b.x<=GLINE){ if(b.y>MT&&b.y<MB){ scoreGoal("away"); } else { resetLoose("home"); } return true; }
+  if(b.x>=FW-GLINE){ if(b.y>MT&&b.y<MB){ scoreGoal("home"); } else { resetLoose("away"); } return true; }
+  return false;
+}
+function resetLoose(side){
+  const b=M.ball;
+  b.x=side==="home"?GLINE+44:FW-GLINE-44; b.y=clamp(b.y,30,FH-30);
+  b.vx=0; b.vy=0; b.owner=null; b.powered=false; b.lastTouch=side;
+}
+function scoreGoal(side){
+  M.score[side]++;
+  const sc=topAttacker(side);
+  log("goal",`⚽ GOOOL de ${teamLabel(side)}! ${sc?sc.unit.ic+" "+sc.unit.a:""} marca. (${M.score.home} x ${M.score.away})`);
+  spawnBurst(side==="home"?FW-GLINE:GLINE,FH/2,"#f5c451",30);
+  M.shake=Math.max(M.shake,12); M.hitstop=Math.max(M.hitstop,0.25);
+  if(side==="home"&&(NATIONS[S.nation].passive==="momentum"||starterUnits().some(u=>u.pa==="momentum"))){
+    M.momHome+=4; for(const p of M.players) if(p.team==="home"&&p.role==="ATA") p.atk+=2;
+    log("sys","🔆 O Sol arde: seus atacantes ficam mais fortes!"); }
+  if((side==="home"?starterUnits():M.away.units).some(u=>u.pa==="calor")){
+    M.calor+=2; log("sys","🔥 O calor do campo aumenta — o fôlego queima mais rápido."); }
+  kickoff(opp(side));
+}
+function kickoff(side){
+  for(const p of M.players){ p.x=p.sx; p.y=p.sy; p.vx=p.vy=p.kvx=p.kvy=0; }
+  const b=M.ball; b.x=FW/2; b.y=FH/2; b.owner=null; b.powered=false; b.trail=[];
+  b.vx=side==="home"?-30:30; b.vy=rnd(-15,15); b.lastTouch=side;
+}
+
+/* ------------------------------ FIM / PÊNALTIS --------------------------- */
+function teamRating(team,kind){
+  const us=team==="home"?starterUnits():M.away.units;
+  if(kind==="shoot"){ const a=us.filter(u=>u.role!=="GOL"); return a.reduce((s,u)=>s+u.stats.atk,0)/Math.max(1,a.length); }
+  const g=us.find(u=>u.role==="GOL"); return g?g.stats.def:3;
 }
 function penalties(){
-  const hp=matchTeamPower("home"), ap=matchTeamPower("away");
+  const ha=teamRating("home","shoot"),hg=teamRating("home","gk");
+  const aa=teamRating("away","shoot"),ag=teamRating("away","gk");
   let h=0,a=0;
-  for(let i=0;i<5;i++){
-    if(Math.random()< clamp(0.5+ (hp.atk-ap.gk*1.4)*0.01,0.25,0.85)) h++;
-    if(Math.random()< clamp(0.5+ (ap.atk-hp.gk*1.4)*0.01,0.25,0.85)) a++;
-  }
-  if(h===a){ h+=Math.random()<0.5?1:0; a=h===a?a+1:a; } // desempate simples
-  log("sys",`🥅 Pênaltis: ${M.home.name.split(" ").slice(-1)} ${h} x ${a} ${M.away.name}`);
+  for(let i=0;i<5;i++){ if(Math.random()<clamp(0.5+(ha-ag)*0.02,0.25,0.85))h++; if(Math.random()<clamp(0.5+(aa-hg)*0.02,0.25,0.85))a++; }
+  let guard=0; while(h===a&&guard++<10){ if(Math.random()<0.55)h++; if(h===a&&Math.random()<0.5)a++; }
+  if(h===a)h++;
+  log("sys",`🥅 Disputa de pênaltis: ${teamLabel("home")} ${h} x ${a} ${M.away.name}`);
   finishMatch(h>a?"home":"away");
 }
+function endRegulation(){
+  M.running=false; if(M.raf)cancelAnimationFrame(M.raf);
+  if(M.score.home===M.score.away&&M.stage.ko){ log("sys","⏱️ Empate no tempo normal — vamos aos PÊNALTIS!"); setTimeout(penalties,800); return; }
+  finishMatch(M.score.home>M.score.away?"home":(M.score.home<M.score.away?"away":"draw"));
+}
 function finishMatch(result){
-  M.ended=true; clearTimeout(M._t);
-  const won = result==="home";
-  const drew = result==="draw";
-  updateMatchUI();
-  setTimeout(()=>screenResult(won,drew),700);
+  M.ended=true; if(M.raf)cancelAnimationFrame(M.raf);
+  setTimeout(()=>screenResult(result==="home",result==="draw"),800);
 }
 
-/* ----------------------------- RENDER PARTIDA ----------------------------- */
+/* ------------------------------ TÁTICAS ---------------------------------- */
+function useTactic(which){
+  if(!M||M.ended||!M.running)return;
+  const t=NATIONS[S.nation].tactic;
+  if(which==="sig"){
+    if(M.energy<t.cost){toast("Energia insuficiente");return;} M.energy-=t.cost;
+    if(t.kind==="atk"){ M.buffs.home.power=4; log("sys",`✨ ${t.name}! Os chutes do seu time queimam por alguns segundos.`); }
+    else if(t.kind==="steal"){ M.buffs.away.slow=3; if(M.ball.owner&&M.ball.owner.team==="away"){M.ball.owner=null;M.ball.lastTouch="home";} log("sys",`✨ ${t.name}! A névoa confunde e lentifica o adversário.`); }
+    else if(t.kind==="def"){ M.buffs.home.shield=4; M.buffs.home.drain=4; log("sys",`✨ ${t.name}! Defesa reforçada e o adversário se esgota.`); }
+    else if(t.kind==="counter"){ M.buffs.home.haste=3.5; log("sys",`✨ ${t.name}! Contra-ataque relâmpago.`); }
+  } else if(which==="power"){
+    if(M.energy<45){toast("Energia insuficiente");return;} M.energy-=45; M.cmdPower=true;
+    const sh=topAttacker("home");
+    if(sh){ for(const p of M.players)p.isPowerShooter=false; sh.isPowerShooter=true;
+      toast(`${sh.unit.a} vai soltar um chute de poder!`);
+      log("sys",`🎯 ${sh.unit.ic} ${sh.unit.a} foi designado para o CHUTE DE PODER (na próxima posse).`); }
+  } else if(which==="heal"){
+    if(M.energy<50){toast("Energia insuficiente");return;} M.energy-=50;
+    for(const p of M.players) if(p.team==="home"){ if(p.stun>0){p.stun=0;p.hp=p.maxHp*0.5;} else p.hp=Math.min(p.maxHp,p.hp+p.maxHp*0.35); }
+    spawnBurst(FW*0.25,FH/2,"#4fd18b",22);
+    log("sys","💚 Reforço de fôlego: seu time recupera energia e reanima os caídos.");
+  }
+  updateHud();
+}
+
+/* ------------------------------ VFX -------------------------------------- */
+function spawnBurst(x,y,color,n){
+  for(let i=0;i<n;i++){ const a=Math.random()*7,s=rnd(30,170);
+    M.vfx.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.3,.7),max:.7,color,size:rnd(2,5)}); }
+}
+function updateVfx(sdt){
+  for(let i=M.vfx.length-1;i>=0;i--){ const v=M.vfx[i];
+    v.x+=v.vx*sdt; v.y+=v.vy*sdt; v.vx*=0.92; v.vy*=0.92; v.life-=sdt;
+    if(v.life<=0) M.vfx.splice(i,1); }
+}
+
+/* ------------------------------ DESENHO ---------------------------------- */
+function draw(){
+  const ctx=M.ctx; if(!ctx)return;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,FW,FH);
+  ctx.save();
+  if(M.shake>0.3) ctx.translate(rnd(-M.shake,M.shake),rnd(-M.shake,M.shake));
+  for(let i=0;i<10;i++){ ctx.fillStyle=i%2?"#1c7136":"#1f7a3a"; ctx.fillRect(i*FW/10,0,FW/10+1,FH); }
+  ctx.strokeStyle="rgba(255,255,255,.45)"; ctx.lineWidth=2;
+  ctx.strokeRect(6,6,FW-12,FH-12);
+  ctx.beginPath(); ctx.moveTo(FW/2,6); ctx.lineTo(FW/2,FH-6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(FW/2,FH/2,40,0,7); ctx.stroke();
+  ctx.strokeRect(6,MT-22,48,GMH+44); ctx.strokeRect(FW-54,MT-22,48,GMH+44);
+  ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillRect(0,MT,GLINE,GMH); ctx.fillRect(FW-GLINE,MT,GLINE,GMH);
+  for(const p of M.players) drawPlayer(ctx,p);
+  const b=M.ball;
+  if(b.powered&&b.trail.length){ for(let i=0;i<b.trail.length;i++){ const t=b.trail[i];
+    ctx.globalAlpha=i/b.trail.length*0.6; ctx.fillStyle=b.col;
+    ctx.beginPath(); ctx.arc(t.x,t.y,BR*(i/b.trail.length),0,7); ctx.fill(); } ctx.globalAlpha=1; }
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(b.x,b.y,BR,0,7); ctx.fill();
+  ctx.strokeStyle="#33405a"; ctx.lineWidth=1; ctx.stroke();
+  for(const v of M.vfx){ ctx.globalAlpha=clamp(v.life/v.max,0,1); ctx.fillStyle=v.color;
+    ctx.beginPath(); ctx.arc(v.x,v.y,v.size,0,7); ctx.fill(); } ctx.globalAlpha=1;
+  ctx.restore();
+  updateHud();
+}
+function drawPlayer(ctx,p){
+  ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(p.x,p.y+PR*0.7,PR*0.9,PR*0.4,0,0,7); ctx.fill();
+  const col=p.team==="home"?M.home.color:M.away.color;
+  if(p.stun>0){
+    ctx.globalAlpha=0.5; ctx.fillStyle="#566"; ctx.beginPath(); ctx.arc(p.x,p.y,PR,0,7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle="#ff6b6b"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(p.x-6,p.y-6); ctx.lineTo(p.x+6,p.y+6); ctx.moveTo(p.x+6,p.y-6); ctx.lineTo(p.x-6,p.y+6); ctx.stroke();
+    return;
+  }
+  if(p.charging){ const r=PR+4+p.chargeT/CHARGE_DUR*12; ctx.strokeStyle=shotColor(p); ctx.lineWidth=3;
+    ctx.globalAlpha=0.4+0.5*Math.random(); ctx.beginPath(); ctx.arc(p.x,p.y,r,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+  if(p.isPowerShooter){ ctx.strokeStyle="#f5c451"; ctx.lineWidth=2; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.arc(p.x,p.y,PR+5,0,7); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.fillStyle=col; ctx.beginPath(); ctx.arc(p.x,p.y,PR,0,7); ctx.fill();
+  ctx.fillStyle="rgba(0,0,0,.6)"; ctx.font="bold 10px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(p.role[0],p.x,p.y);
+  const frac=clamp(p.hp/p.maxHp,0,1);
+  ctx.strokeStyle=frac>0.5?"#4fd18b":frac>0.25?"#f5c451":"#ff6b6b"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(p.x,p.y,PR+3,-Math.PI/2,-Math.PI/2+frac*Math.PI*2); ctx.stroke();
+}
+
+/* ------------------------------ HUD / DOM -------------------------------- */
+function teamLife(team){ let h=0,m=0; for(const p of M.players) if(p.team===team){h+=Math.max(0,p.hp);m+=p.maxHp;} return m?h/m:0; }
+function teamDowns(team){ let n=0; for(const p of M.players) if(p.team===team&&p.stun>0)n++; return n; }
+
 function renderMatch(){
   clear();
   const t=NATIONS[S.nation].tactic;
@@ -752,34 +959,30 @@ function renderMatch(){
       <div><span id="sH">0</span><span class="muted"> : </span><span id="sA">0</span></div>
       <div class="tn">${M.away.crest}<br>${M.away.name}</div>
     </div>
-    <div class="center"><span class="clock" id="clk">0'</span></div>
-    <div id="field">
-      <div class="crowd top"></div><div class="crowd bot"></div>
-      <div class="area l"></div><div class="area r"></div>
-      <div class="midline"></div><div class="circle"></div>
-      <div class="goal l"></div><div class="goal r"></div>
-      <div id="ball"></div>
+    <div class="center"><span class="clock" id="clk">0'</span> <span class="muted" id="men" style="font-size:12px"></span></div>
+    <canvas id="pitch" width="${FW}" height="${FH}"
+      style="width:100%;display:block;border-radius:14px;border:2px solid #0c4a20;margin-top:8px;box-shadow:inset 0 0 40px rgba(0,0,0,.4)"></canvas>
+    <div class="row" style="gap:8px;margin-top:8px">
+      <div style="flex:1">
+        <div style="font-size:11px;margin-bottom:2px" class="good">❤️ Fôlego — ${M.home.name.split(" ").slice(-1)}</div>
+        <div class="momentum"><div id="lifeH" style="width:100%"></div></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11px;margin-bottom:2px;text-align:right;color:${M.away.color}">${M.away.name} ❤️</div>
+        <div class="momentum" style="background:#3a1d1d"><div id="lifeA" style="width:100%;background:linear-gradient(90deg,#2e9c66,var(--good))"></div></div>
+      </div>
     </div>
-    <div style="margin:10px 0 4px;font-size:12px;display:flex;justify-content:space-between">
-      <span class="good">◀ ${M.home.name.split(" ").slice(-1)}</span>
-      <span class="muted">posse de bola</span>
-      <span style="color:${M.away.color}">${M.away.name} ▶</span>
-    </div>
-    <div class="momentum"><div id="mom" style="width:50%"></div></div>
-
-    <div class="card" style="margin-top:12px;padding:12px">
+    <div class="card" style="margin-top:10px;padding:12px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-        <span>⚡ Energia tática</span>
-        <span class="muted">Fôlego: <span id="stam">100</span>%  ·  🔥<span id="cal">0</span></span>
+        <span>⚡ Energia tática</span><span class="muted">🔥 calor: <span id="cal">0</span></span>
       </div>
-      <div class="energybar"><div id="enr" style="width:0%"></div></div>
+      <div class="energybar"><div id="enr" style="width:25%"></div></div>
       <div class="tactics">
-        <button class="btn tactic" id="tSig" style="border-color:${NATIONS[S.nation].color}">${t.name}<small>🪙${t.cost} energia</small></button>
-        <button class="btn tactic" id="tPress">Pressão Total<small>🪙40 · +ataque</small></button>
-        <button class="btn tactic" id="tDef">Retranca<small>🪙40 · +defesa</small></button>
+        <button class="btn tactic" id="tSig" style="border-color:${NATIONS[S.nation].color}">${t.name}<small>⚡${t.cost}</small></button>
+        <button class="btn tactic" id="tPow">🎯 Chute de Poder<small>⚡45</small></button>
+        <button class="btn tactic" id="tHeal">💚 Reforço de Fôlego<small>⚡50</small></button>
       </div>
     </div>
-
     <div class="row" style="margin-top:10px;align-items:center;justify-content:space-between">
       <div class="speedctl">
         <button class="btn seg" id="pause">⏸</button>
@@ -791,58 +994,36 @@ function renderMatch(){
     </div>
     <div id="log" style="margin-top:10px"></div>
   </div>`;
-  M.speed=2;
+  M.canvas=$("#pitch"); M.ctx=M.canvas.getContext("2d");
   $("#tSig").onclick=()=>useTactic("sig");
-  $("#tPress").onclick=()=>useTactic("press");
-  $("#tDef").onclick=()=>useTactic("def");
+  $("#tPow").onclick=()=>useTactic("power");
+  $("#tHeal").onclick=()=>useTactic("heal");
   $("#pause").onclick=()=>{M.paused=!M.paused;$("#pause").textContent=M.paused?"▶":"⏸";};
-  $("#s1").onclick=()=>setSpeed(1);$("#s2").onclick=()=>setSpeed(2);$("#s3").onclick=()=>setSpeed(3);
-  $("#skip").onclick=()=>{M.speed=3;M.paused=false;
-    // acelera bastante simulando até o fim
-    const fast=()=>{ if(M.ended)return; if(M.running)matchTick(); if(!M.ended)setTimeout(fast,60); };
-    clearTimeout(M._t);fast();$("#skip").disabled=true;};
-  updateMatchUI();
+  $("#s1").onclick=()=>setSpeed(1); $("#s2").onclick=()=>setSpeed(2); $("#s3").onclick=()=>setSpeed(3);
+  $("#skip").onclick=()=>{ setSpeed(3); M.speed=5; M.paused=false; $("#skip").disabled=true; };
 }
-function setSpeed(s){M.speed=s;M.paused=false;$("#pause").textContent="⏸";
-  ["s1","s2","s3"].forEach(x=>$("#"+x).classList.remove("on"));$("#s"+s).classList.add("on");}
+function setSpeed(s){ M.speed=s; M.paused=false; const pb=$("#pause"); if(pb)pb.textContent="⏸";
+  ["s1","s2","s3"].forEach(x=>{const e=$("#"+x);if(e)e.classList.remove("on");}); const e=$("#s"+s); if(e)e.classList.add("on"); }
 
-function useTactic(which){
-  if(M.ended||!M.running)return;
-  let cost, kind, msg;
-  if(which==="sig"){const t=NATIONS[S.nation].tactic;cost=t.cost;
-    if(M.energy<cost){toast("Energia insuficiente");return;}
-    if(t.kind==="atk"){M.buffs.home.atk=t.dur;}
-    else if(t.kind==="def"){M.buffs.home.def=t.dur;M.stamAway=clamp(M.stamAway-15,0,100);}
-    else if(t.kind==="steal"){M.buffs.home.steal=t.dur;}
-    else if(t.kind==="counter"){M.buffs.home.counter=t.dur;}
-    msg=`✨ TÁTICA: ${t.name}!`;
-  } else if(which==="press"){cost=40;if(M.energy<cost){toast("Energia insuficiente");return;}
-    M.buffs.home.atk=2;msg="🔺 Pressão Total — ataque reforçado!";
-  } else {cost=40;if(M.energy<cost){toast("Energia insuficiente");return;}
-    M.buffs.home.def=2;msg="🔻 Retranca — defesa reforçada!";}
-  M.energy-=cost;log("sys",msg);updateMatchUI();
-}
-
-function updateMatchUI(){
+function updateHud(){
   if(!M)return;
-  const sH=$("#sH"),sA=$("#sA");if(sH)sH.textContent=M.score.home;if(sA)sA.textContent=M.score.away;
-  const clk=$("#clk");if(clk)clk.textContent=Math.min(90,M.time)+"'";
-  const ball=$("#ball");if(ball){ball.style.left=M.pos+"%";
-    ball.style.top=(50+rnd(-22,22))+"%";}
-  const mom=$("#mom");if(mom)mom.style.width=M.momentum+"%";
-  const enr=$("#enr");if(enr)enr.style.width=M.energy+"%";
-  const stam=$("#stam");if(stam)stam.textContent=Math.round(M.stamHome);
-  const cal=$("#cal");if(cal)cal.textContent=M.calor;
-  // habilita/desabilita táticas
+  const set=(id,v)=>{const e=$("#"+id);if(e)e.textContent=v;};
+  set("sH",M.score.home); set("sA",M.score.away); set("clk",Math.min(90,Math.floor(M.time))+"'"); set("cal",M.calor);
+  const lh=$("#lifeH"); if(lh)lh.style.width=(teamLife("home")*100).toFixed(0)+"%";
+  const la=$("#lifeA"); if(la)la.style.width=(teamLife("away")*100).toFixed(0)+"%";
+  const enr=$("#enr"); if(enr)enr.style.width=M.energy+"%";
+  const dh=teamDowns("home"), da=teamDowns("away");
+  const men=$("#men"); if(men)men.textContent=(dh||da)?`(${5-dh} x ${5-da} em campo)`:"";
   const t=NATIONS[S.nation].tactic;
-  const tSig=$("#tSig");if(tSig)tSig.disabled=M.energy<t.cost;
-  const tP=$("#tPress");if(tP)tP.disabled=M.energy<40;
-  const tD=$("#tDef");if(tD)tD.disabled=M.energy<40;
+  const ts=$("#tSig"); if(ts)ts.disabled=M.energy<t.cost;
+  const tp=$("#tPow"); if(tp)tp.disabled=M.energy<45||M.cmdPower;
+  const th=$("#tHeal"); if(th)th.disabled=M.energy<50;
 }
+
 function log(cls,html){
-  const box=$("#log");if(!box)return;
-  const d=document.createElement("div");d.className="e "+(cls||"");d.innerHTML=html;
-  box.appendChild(d);box.scrollTop=box.scrollHeight;
+  const box=$("#log"); if(!box)return;
+  const d=document.createElement("div"); d.className="e "+(cls||""); d.innerHTML=html;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
 }
 
 /* ------------------------------- RESULTADO -------------------------------- */
