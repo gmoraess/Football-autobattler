@@ -65,11 +65,14 @@ Só um time tem a bola por vez, então cada turno é uma **disputa de posse**:
 **Ataque:** 🅿️ Tabela · 👟 Drible · ⚡ Lançamento · 🧠 Visão de Jogo (apoio) · ⚽ Finalização · 🪄 Chute Colocado · 💥 Bicuda (finalização) · 💢 Pancada (impacto/STA).
 **Defesa:** 🧤 Defesa · 🧱 Bloqueio (block) · ✋ Desarme (rouba) · 😖 Marcação (pressão) · 💢 Carrinho (impacto/STA).
 
-### 2.3 Resolução simétrica (atacante vs defensor)
-- O **defensor pode roubar** (desarme), **forçar erro** (marcação) ou **defender** (block) → anula/reduz o ataque.
-- Finalização vira gol se `ataque − defesa ≥ limiar` (força + qualidade + precisão vs blocks + DEF).
-- **Embalo (momentum):** construir sem finalizar acumula bônus para a próxima finalização (recompensa a paciência).
-- **Impacto com CONTRAJOGO:** só conecta se o ataque chega (roubo/erro anulam) e é **reduzido pela defesa do alvo** (blocks) e pela habilidade do atacante (dribles). Isso evita o nocaute determinístico.
+### 2.3 Resolução DETERMINÍSTICA + ZONAS de campo (sem sorte na resolução)
+- **Nada de dado na resolução:** tudo é **valor vs alvo** / **valor seu vs valor do rival**. A variância vem só do **sorteio das cartas** → builds funcionam de forma fiável.
+- **Campo em 4 zonas:** Defesa/Meio de cada lado. Só dá pra **FINALIZAR** na **Zona de Ataque** do rival → é preciso avançar antes.
+- **Avanço:** seu valor de avanço ≥ alvo fixo → sobe de zona (não é barrado pela guarda; a defesa para via roubo).
+- **Roubo (X vs X):** desarme do defensor vs **controle** do atacante. Avançar agressivo (rápido) expõe a bola; avançar seguro (passe) mantém a posse, mais devagar.
+- **Gol:** chute (potência+precisão+embalo) ≥ **guarda do goleiro** (blocks + DEF). Atingiu o alvo, é gol.
+- **Impacto (💥):** dano de STA determinístico; **só conecta se o lance vingou** (roubo/erro anulam) — esse é o contrajogo.
+- **Turnos:** **15** (recomendado por simulação — ver §4). Mais que os 9 originais por causa das zonas.
 
 ### 2.4 Onde entram as builds (Parte 2)
 - Na loja você **compra/forja cartas** para o seu baralho (deck-building).
@@ -95,14 +98,15 @@ Só um time tem a bola por vez, então cada turno é uma **disputa de posse**:
 
 1. ✅ **Rebrand:** "World Cup Beasts"; protagonista fera-tatu (sprite pixel em canvas); arquivo `beasts.html` (o jogo de física antigo segue como referência).
 2. ✅ **Tela turn-based:** 2 barras de **STA/vida**, placar, **turno (1/9)**, indicador de **posse**, **mão de cartas** + **zona de jogada**.
-3. ✅ **Sistema de cartas:** mão sorteada por modo (ataque/defesa); regras "1 finalização + resto empilha, teto de 3"; **embalo (momentum)** para construir antes de finalizar.
-4. ✅ **Resolução simétrica:** a **IA joga as cartas do Górtax**; contraste atacante×defensor (roubo/erro/defesa/finalização) + **impacto com contrajogo**.
-5. ✅ **Campo animado:** a bola viaja pelos passes/chutes e os personagens se movem (perseguem/recebem); shake/partículas no gol e no impacto; banner de câmera lenta no início do turno.
-6. ✅ **3 regras de vitória:** placar nos 9 turnos (empate → morte súbita), goleada de 5 gols, e nocaute por STA (vale na morte súbita).
-7. ✅ **STA como vida:** cansaço por turno + dano de impacto (reduzido por defesa).
-8. ✅ **Teste headless:** 40.000 partidas, **0 exceções**. Balanceamento: estratégia de **gol 52%** vs **impacto 50%** (co-equivalentes), nocaute em **~28%** dos jogos de impacto, espelho **54%** (leve vantagem de quem começa), **aleatório 31%** (estratégia quase dobra a vitória).
+3. ✅ **Sistema de cartas DETERMINÍSTICO:** sem sorte na resolução (valor vs alvo / X vs X). Regras "1 finalização + resto empilha, teto de 3"; **embalo (momentum)**.
+4. ✅ **Campo em 4 ZONAS:** avanço por alvo fixo, roubo = controle vs desarme, finalização só na Zona de Ataque, gol = chute vs guarda do goleiro.
+5. ✅ **Resolução simétrica:** a **IA joga as cartas do Górtax** (ciente da zona: desarma no meio, guarda na área).
+6. ✅ **Campo animado:** a bola viaja pelas zonas/passes/chutes e os personagens se movem; shake/partículas no gol e no impacto.
+7. ✅ **3 regras de vitória:** placar (empate → morte súbita), goleada de 5 gols, e nocaute por STA (vale na morte súbita).
+8. ✅ **Turnos = 15** (recomendado por varredura de simulação).
+9. ✅ **Teste headless:** 48.000 partidas, **0 exceções**. Placar médio ~1,1×1,1 (≈3,4 chutes/jogo). Decisão: **placar 65% · gol-de-ouro 18% · nocaute 17%**. Estratégias: **gol 50%**, **impacto 37%** (build secundária viável; ~23% por nocaute), **aleatório 12%** → a estratégia vale ~4× a sorte. *(Impacto co-equalizável na Parte 2 com cartas/relíquias dedicadas.)*
 
-**Status:** jogável em `beasts.html`. **Falta validar com o usuário** se o duelo de cartas "gruda" antes da Parte 2.
+**Status:** jogável em `beasts.html`. **Falta validar com o usuário** se o duelo de cartas (determinístico + zonas) "gruda" antes da Parte 2.
 
 ---
 
