@@ -250,7 +250,7 @@ function startGame(){
      ball:{x:ZX[st.pos],y:FH/2,px:ZX[st.pos],py:FH/2,rot:0,trail:[],fire:0},
      vfx:[],fire:[],shake:0,anim:null,raf:0,animPoss:"home",
      cam:{s:1,x:FW/2,y:FH/2},camT:{s:1,x:FW/2,y:FH/2},slow:1,slowT:1,netRipple:{L:0,R:0},
-     phase:"buildup",challenge:null,shooter:null,shotSpot:null,carrier:null};
+     phase:"buildup",challenge:null,shooter:null,shotSpot:null,carrier:null,receiver:null,passTo:null};
   setupPlayers(); renderMatch();
   log("sys",`🏟️ ${st.beasts.home.crest} ${st.beasts.home.name} entra em campo contra ${st.beasts.away.crest} ${st.beasts.away.name}`);
   log("sys",`5 contra 5 · ${TURNS} turnos · avance até o Ataque para finalizar.`);
@@ -322,24 +322,34 @@ function buildAnim(res,oldPos){
   const aSide=G.st.possession, dir=aSide==="home"?1:-1;
   const sx=ZX[oldPos], gx=aSide==="home"?GOAL_R:GOAL_L, gIn=aSide==="home"?GOAL_R+NETD-7:GOAL_L-NETD+7;
   const hit=(res.dmgAway>0||res.dmgHome>0);
-  const wps=[{x:sx,y:FH/2+rnd(-24,24),dur:.16,poss:aSide,phase:"buildup"}];
+  const wide=(Math.random()<.5?-1:1), lane=y=>clamp(y,BY+28,FH-BY-28);
+  const wps=[{x:sx,y:lane(FH/2+rnd(-18,18)),dur:.16,poss:aSide,phase:"buildup"}];
   if(res.outcome==="ADVANCE"){
-    const cx=(sx+ZX[res.pos])/2, vy=(Math.random()<.5?-1:1)*rnd(34,58);
-    wps.push({x:cx-dir*8,y:FH/2+rnd(-26,26),dur:.22,poss:aSide,phase:"buildup",challenge:true}); // zagueiro dá o bote
-    wps.push({x:cx+dir*14,y:FH/2+vy,dur:.16,poss:aSide,phase:"buildup",fx:"dodge"});             // driblou e se esquiva
-    if(hit) wps.push({x:cx+dir*26,y:FH/2+vy,dur:.1,poss:aSide,phase:"buildup",fx:"impact"});
-    wps.push({x:ZX[res.pos],y:FH/2+rnd(-24,24),dur:.26,poss:aSide,phase:"buildup",fx:"pass"});    // avançou
+    // tabela: abre pro lado, a marcação pressiona o recebedor, passe vertical escapa e avança
+    const p1={x:clamp(sx+dir*rnd(28,46),BX+44,FW-BX-44),y:lane(FH/2+wide*rnd(48,96))};
+    const p2={x:ZX[res.pos],y:lane(FH/2-wide*rnd(14,52))};
+    wps.push({x:p1.x,y:p1.y,dur:.26,poss:aSide,phase:"buildup",fx:"pass"});
+    wps.push({x:p1.x+dir*8,y:p1.y,dur:.16,poss:aSide,phase:"buildup",challenge:true});
+    if(hit) wps.push({x:p1.x+dir*18,y:p1.y,dur:.1,poss:aSide,phase:"buildup",fx:"impact"});
+    wps.push({x:p2.x,y:p2.y,dur:.3,poss:aSide,phase:"buildup",fx:"pass"});
   } else if(res.outcome==="STUFF"){
-    wps.push({x:sx+dir*20,y:FH/2+rnd(-24,24),dur:.2,poss:aSide,phase:"buildup",challenge:true,fx:"stuff"}); // a defesa fecha
-    wps.push({x:sx-dir*8,y:FH/2,dur:.18,poss:aSide,phase:"buildup"});                                       // bola sobra p/ você
+    const p1={x:clamp(sx+dir*rnd(26,42),BX+44,FW-BX-44),y:lane(FH/2+wide*rnd(40,80))};
+    wps.push({x:p1.x,y:p1.y,dur:.24,poss:aSide,phase:"buildup",fx:"pass"});
+    wps.push({x:p1.x+dir*6,y:p1.y,dur:.2,poss:aSide,phase:"buildup",challenge:true,fx:"stuff"}); // interceptado
+    wps.push({x:sx,y:FH/2,dur:.22,poss:aSide,phase:"buildup"});                                   // volta, sem avançar
   } else if(res.outcome==="TURNOVER"){
-    wps.push({x:sx+dir*10,y:FH/2+rnd(-20,20),dur:.2,poss:aSide,phase:"buildup",challenge:true,fx:"steal"}); // bote certeiro
-    wps.push({x:ZX[res.pos],y:FH/2,dur:.32,poss:res.possession,phase:"buildup"});                           // rival sai jogando
-  } else { // GOAL / MISS — CHUTE: a bola vai SOZINHA em câmera lenta
+    const p1={x:clamp(sx+dir*rnd(22,40),BX+44,FW-BX-44),y:lane(FH/2+wide*rnd(36,76))};
+    wps.push({x:p1.x,y:p1.y,dur:.24,poss:aSide,phase:"buildup",fx:"pass"});
+    wps.push({x:p1.x,y:p1.y,dur:.18,poss:aSide,phase:"buildup",challenge:true,fx:"steal"});       // bote rouba no passe
+    wps.push({x:ZX[res.pos],y:FH/2,dur:.34,poss:res.possession,phase:"buildup"});
+  } else { // GOAL / MISS — tabela, infiltração e CHUTE (bola vai SOZINHA em câmera lenta)
     const setX=aSide==="home"?FW-BX-110:BX+110;
-    wps.push({x:setX,y:FH/2+rnd(-44,44),dur:.24,poss:aSide,phase:"buildup",fx:"pass"});
-    wps.push({x:setX+dir*16,y:FH/2,dur:.18,poss:aSide,phase:"buildup",challenge:true});            // último zagueiro tenta travar
-    if(hit) wps.push({x:setX+dir*24,y:FH/2,dur:.1,poss:aSide,phase:"buildup",fx:"impact"});
+    const p1={x:clamp((sx+setX)/2,BX+50,FW-BX-50),y:lane(FH/2+wide*rnd(44,92))};
+    const p2={x:setX,y:lane(FH/2-wide*rnd(18,58))};
+    wps.push({x:p1.x,y:p1.y,dur:.26,poss:aSide,phase:"buildup",fx:"pass"});           // troca pelo meio
+    wps.push({x:p2.x,y:p2.y,dur:.26,poss:aSide,phase:"buildup",fx:"pass"});           // enfia na área p/ o runner
+    wps.push({x:setX+dir*14,y:p2.y,dur:.16,poss:aSide,phase:"buildup",challenge:true}); // último zagueiro fecha
+    if(hit) wps.push({x:setX+dir*22,y:p2.y,dur:.1,poss:aSide,phase:"buildup",fx:"impact"});
     const my=clamp(FH/2+rnd(-30,30),GMY1+14,GMY2-14);
     wps.push({x:gx-dir*4,y:my,dur:.55,poss:aSide,phase:"shot",slow:.3,cam:{s:1.72,x:gx-dir*40,y:FH/2},fx:"shotstart"});
     if(res.outcome==="GOAL"){
@@ -354,16 +364,20 @@ function buildAnim(res,oldPos){
 }
 function nearestOf(team){ let b=null,bd=1e9; for(const p of G.players){if(p.team!==team||p.role==="GK")continue;
   const d=Math.hypot(p.x-G.ball.x,p.y-G.ball.y);if(d<bd){bd=d;b=p;}} return b; }
+function nearestTeammateExcept(side,x,y,except){ let b=null,bd=1e9; for(const p of G.players){if(p.team!==side||p.role==="GK"||p===except)continue;
+  const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;b=p;}} return b; }
 function runAnim(anim,cb){ G.anim={wps:anim.wps,i:0,t:0,from:{x:G.ball.x,y:G.ball.y},cb,started:false};
-  G.phase="buildup";G.challenge=null;G.shooter=null;G.shotSpot=null; if(anim.wps[0])G.animPoss=anim.wps[0].poss; }
+  G.phase="buildup";G.challenge=null;G.shooter=null;G.shotSpot=null;G.receiver=null;G.passTo=null; if(anim.wps[0])G.animPoss=anim.wps[0].poss; }
 function stepAnim(dt){
   const a=G.anim; if(!a)return;
   const wp=a.wps[a.i];
-  if(!wp){ G.phase="buildup";G.challenge=null;G.shooter=null; G.camT={s:1,x:FW/2,y:FH/2};G.slowT=1; const cb=a.cb;G.anim=null;cb&&cb(); return; }
+  if(!wp){ G.phase="buildup";G.challenge=null;G.shooter=null;G.receiver=null;G.passTo=null; G.camT={s:1,x:FW/2,y:FH/2};G.slowT=1; const cb=a.cb;G.anim=null;cb&&cb(); return; }
   if(!a.started){ a.started=true;
     G.slowT = wp.slow!=null?wp.slow:1;
     G.camT  = wp.cam? wp.cam : {s:1,x:FW/2,y:FH/2};
     if(wp.challenge) G.challenge={p:nearestOf(opp(wp.poss)),t:.5};
+    if(wp.fx==="pass"){ G.passTo={x:wp.x,y:wp.y}; G.receiver=nearestTeammateExcept(wp.poss,wp.x,wp.y,G.carrier); }
+    else { G.passTo=null; G.receiver=null; }
     if(wp.phase==="shot"&&!G.shooter){ const s=nearestOf(wp.poss); G.shooter=s; G.shotSpot=s?{x:s.x,y:s.y}:{x:G.ball.x,y:G.ball.y}; }
     if(wp.fx==="shotstart") G.ball.fire=0.7;
   }
@@ -431,7 +445,8 @@ function steerPlayers(dt){
       if(shooting){
         if(p===G.shooter&&G.shotSpot){ tx=G.shotSpot.x; ty=G.shotSpot.y; }      // o batedor fica (não entra na rede)
         else { tx=clamp(b.x-dir*70,BX+40,FW-BX-40); ty=p.ay; }
-      } else if(p===carrier){ tx=b.x-dir*14; ty=b.y; }                          // conduz a bola
+      } else if(p===G.receiver&&G.passTo){ tx=G.passTo.x; ty=G.passTo.y; spd=240; } // corre p/ receber o passe
+      else if(p===carrier){ tx=b.x-dir*14; ty=b.y; }                           // conduz a bola
       else { const role=p.role==="FWD"?1:p.role==="MID"?0.5:-0.15;              // companheiros ACOMPANHAM
         tx=clamp(b.x+dir*(role*70+16),BX+40,FW-BX-40); ty=p.ay; spd=220; }
     } else { // DEFESA: linha goal-side que RECUA com o avanço; bote só no challenge
