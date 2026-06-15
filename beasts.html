@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>World Cup Beasts — Duelo de Cartas (determinístico + zonas)</title>
+<title>World Cup Beasts — Duelo de Cartas (5v5)</title>
 <style>
   :root{
     --bg:#0a0e1a; --panel:#131a2e; --panel2:#1b2540; --line:#2a3556;
@@ -37,52 +37,57 @@
   .team .stabar>div{background:linear-gradient(90deg,#2e9c66,var(--good))}
   .scoremid{text-align:center}.scoremid .sc{font-size:28px;font-weight:900}.scoremid .turn{font-size:12px;color:var(--muted)}
 
-  /* barra de zonas do campo */
   .zonebar{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0 6px}
-  .zcell{position:relative;border:1px solid var(--line);border-radius:9px;padding:6px 2px;text-align:center;
-    background:#0e1424;font-size:10px;font-weight:700;color:var(--muted);min-height:40px}
+  .zcell{position:relative;border:1px solid var(--line);border-radius:9px;padding:5px 2px;text-align:center;
+    background:#0e1424;font-size:10px;font-weight:700;color:var(--muted);min-height:34px}
   .zcell .zl{display:block;font-size:9px;opacity:.8}
   .zcell.ball{box-shadow:inset 0 0 0 2px var(--gold)}
   .zcell.shoot{background:#2a2410}
-  .zcell .b{font-size:18px;line-height:1}
+  .zcell .b{font-size:16px;line-height:1}
   .dir{font-size:11px;text-align:center;color:var(--muted);margin-bottom:4px}
 
   #pitch{width:100%;display:block;border-radius:12px;border:2px solid #0c4a20;
-    box-shadow:inset 0 0 40px rgba(0,0,0,.5);margin-bottom:8px;background:#1a6b32}
+    box-shadow:inset 0 0 50px rgba(0,0,0,.5);margin-bottom:8px;background:#1b6e31}
 
   .zonelabel{font-size:12px;color:var(--muted);margin:2px 2px 5px;display:flex;justify-content:space-between}
   .playzone{min-height:96px;border:2px dashed var(--line);border-radius:12px;padding:7px;
     display:flex;gap:7px;flex-wrap:wrap;align-items:center;background:#0e142480}
   .playzone.empty::before{content:"Toque nas cartas para montar a jogada";color:#5b6688;font-size:12px;margin:auto}
   .hand{display:flex;gap:7px;overflow-x:auto;padding:8px 2px 2px;scrollbar-width:thin}
-  .pcard{flex:0 0 auto;width:90px;min-height:120px;border-radius:11px;border:2px solid var(--line);
+  .pcard{flex:0 0 auto;width:96px;min-height:124px;border-radius:11px;border:2px solid var(--line);
     background:linear-gradient(180deg,#1d2742,#161e34);padding:7px 6px;cursor:pointer;position:relative;
     transition:transform .1s,border-color .15s;user-select:none}
   .pcard:hover{transform:translateY(-3px)}
   .pcard .ic{font-size:24px;text-align:center;line-height:1.1}
   .pcard .nm{font-size:11px;font-weight:800;text-align:center;margin-top:2px}
-  .pcard .vals{font-size:9px;color:#9cd6ff;text-align:center;margin-top:3px;line-height:1.3}
-  .pcard .ds{font-size:8.5px;color:var(--muted);line-height:1.22;margin-top:3px}
+  .pcard .vals{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-top:4px}
+  .pcard .vals b{font-size:8px;font-weight:800;padding:1px 4px;border-radius:5px;background:#0e1830;color:#9cd6ff;border:1px solid #2a3556}
+  .pcard .ds{font-size:8.5px;color:var(--muted);line-height:1.25;margin-top:5px;text-align:center}
   .pcard .tag{position:absolute;top:5px;right:5px;font-size:8px;font-weight:800;padding:1px 5px;border-radius:6px}
   .pcard.finish{border-color:#c9803a}.pcard.finish .tag{background:#5a3a1d;color:#ffc890}
   .pcard.support .tag{background:#1d3a4a;color:#9cd6ff}
   .pcard.impact{border-color:#a8403a}.pcard.impact .tag{background:#4a1d1d;color:#ff9c9c}
   .pcard.block .tag,.pcard.tackle .tag,.pcard.pressure .tag{background:#1d4a2c;color:#9cffb6}
-  .pcard.mini{width:64px;min-height:80px}.pcard.mini .ic{font-size:20px}.pcard.mini .nm{font-size:9px}.pcard.mini .ds,.pcard.mini .vals{display:none}
+  .pcard.mini{width:66px;min-height:82px}.pcard.mini .ic{font-size:20px}.pcard.mini .nm{font-size:9px}.pcard.mini .ds,.pcard.mini .vals{display:none}
   .pcard.disabled{opacity:.32;pointer-events:none;filter:grayscale(.6)}
 
-  #log{height:74px;overflow-y:auto;background:#0c1120;border:1px solid var(--line);border-radius:12px;
+  #log{height:70px;overflow-y:auto;background:#0c1120;border:1px solid var(--line);border-radius:12px;
     padding:8px;font-size:13px;line-height:1.5;margin-top:8px}
   #log .e{margin-bottom:2px}
   #log .goal{color:var(--gold);font-weight:800}#log .ko{color:var(--bad);font-weight:800}
   #log .good{color:var(--good)}#log .sys{color:#c0a0ff}#log .miss{color:#ffb07a}#log .adv{color:#9cd6ff}
 
   #banner{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(60% 60% at 50% 50%,rgba(10,14,26,.15),rgba(5,8,15,.9));pointer-events:none}
+    background:radial-gradient(60% 60% at 50% 50%,rgba(10,14,26,.12),rgba(5,8,15,.86));pointer-events:none}
   #banner .big{text-align:center;animation:zoomin 1s ease both}
   #banner .t1{font-size:13px;letter-spacing:4px;color:var(--muted);font-weight:800}
   #banner .t2{font-size:36px;font-weight:900;text-shadow:0 4px 24px rgba(0,0,0,.8)}
   @keyframes zoomin{0%{transform:scale(2);opacity:0;filter:blur(5px)}40%{transform:scale(1);opacity:1;filter:blur(0)}100%{opacity:.92}}
+  .bigtext{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:80;pointer-events:none;
+    font-size:64px;font-weight:900;letter-spacing:1px;text-shadow:0 6px 30px rgba(0,0,0,.9);animation:goalpop 1.4s ease both}
+  @keyframes goalpop{0%{transform:translate(-50%,-50%) scale(.2) rotate(-8deg);opacity:0}
+    25%{transform:translate(-50%,-50%) scale(1.15) rotate(2deg);opacity:1}
+    70%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}100%{opacity:0;transform:translate(-50%,-58%) scale(1)}}
   .toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:#000d;border:1px solid var(--gold);
     color:var(--gold);padding:8px 15px;border-radius:10px;font-weight:800;z-index:99;animation:fade .25s}
   @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -95,13 +100,12 @@
 <script>
 "use strict";
 /* ===========================================================================
-   WORLD CUP BEASTS — Duelo de cartas DETERMINÍSTICO com ZONAS de campo.
-   - Sem sorte na resolução: tudo é "valor X vs alvo X" (ou X seu vs X do rival).
-     A variância vem só do sorteio das cartas -> builds funcionam de forma fiável.
-   - Campo em 4 zonas. Para FINALIZAR é preciso estar na zona de ataque do rival.
-   - Roubo = seu controle vs desarme do rival. Avanço = avanço vs guarda.
-     Gol = chute vs guarda(GK). Impacto = STA (só conecta se o lance vingou).
-   - 3 vias de vitória: placar (empate->morte súbita) · 5 gols dif. · nocaute STA.
+   WORLD CUP BEASTS — Duelo de cartas determinístico (5v5, campo animado).
+   - Resolução sem sorte: valor vs alvo / X seu vs X do rival. Variância = só o
+     sorteio das cartas -> builds funcionam de forma fiável.
+   - Campo de futebol normal; a orientação de zona fica na barra acima.
+   - A animação da bola é a peça central: passes entre os 5, e no gol há
+     zoom + câmera lenta + fogo + a bola estufando a rede.
    Lógica pura separada do render (testável headless).
    ========================================================================= */
 const $=(s,el=document)=>el.querySelector(s);
@@ -113,30 +117,25 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 /* ------------------------------- AJUSTES --------------------------------- */
-let TURNS=15, STA_MAX=100; const MERCY=5, HAND=5, MAXPLAY=3;   // 15 turnos: recomendado por simulação
-let IMPACT_DMG=8;    // dano de STA por carta de impacto (determinístico; só conecta se o lance vingou)
-let FATIGUE=1;       // STA perdida por time a cada turno (cansaço leve)
-const BIGSTEP=6;     // margem acima do alvo para avançar 2 zonas de uma vez
-const ADV_TH=7;      // ALVO de avanço: atingiu -> avança de zona (não é barrado pela guarda)
-const MOMCAP=6;      // teto do embalo (momentum), que ajuda no chute
+let TURNS=15, STA_MAX=100; const MERCY=5, HAND=5, MAXPLAY=3;
+let IMPACT_DMG=8, FATIGUE=1;
+const BIGSTEP=6, ADV_TH=7, MOMCAP=6;
 
 /* ------------------------------- CARTAS ---------------------------------- */
-// ATAQUE: adv=avanço, ctrl=controle (resiste a roubo), shot=potência/precisão de chute
-// DEFESA: guard=guarda (barra avanço e chute), steal=desarme (rouba), sta=impacto
 const CARDS={
-  passe   :{id:"passe",mode:"atk",type:"support",nm:"Tabela",ic:"🅿️",adv:3,ctrl:5,ds:"Avanço seguro: muito controle (resiste a roubo)."},
-  drible  :{id:"drible",mode:"atk",type:"support",nm:"Drible",ic:"👟",adv:5,ctrl:2,ds:"Bom avanço; controle médio."},
-  lancamento:{id:"lancamento",mode:"atk",type:"support",nm:"Lançamento",ic:"⚡",adv:7,ctrl:0,ds:"Avanço grande; expõe a bola (roubável)."},
-  visao   :{id:"visao",mode:"atk",type:"support",nm:"Visão de Jogo",ic:"🧠",adv:2,ctrl:3,shot:6,ds:"Pouco avanço, muita precisão na finalização."},
-  finaliza:{id:"finaliza",mode:"atk",type:"finish",nm:"Finalização",ic:"⚽",shot:9,ds:"Chute equilibrado (só na zona de ataque)."},
-  colocado:{id:"colocado",mode:"atk",type:"finish",nm:"Chute Colocado",ic:"🪄",shot:6,pierce:5,ds:"Fura a defesa (ignora parte da guarda)."},
-  bicuda  :{id:"bicuda",mode:"atk",type:"finish",nm:"Bicuda",ic:"💥",shot:12,impact:1,ds:"Chute forte que fere quem estiver no caminho (💥)."},
-  pancada :{id:"pancada",mode:"atk",type:"impact",nm:"Pancada",ic:"💢",adv:3,sta:IMPACT_DMG,ds:"Avança batendo a bola num rival: dano de STA. NÃO é finalização."},
-  defesa  :{id:"defesa",mode:"def",type:"block",nm:"Defesa",ic:"🧤",guard:7,ds:"Muita guarda: barra avanço e chute."},
-  bloqueio:{id:"bloqueio",mode:"def",type:"block",nm:"Bloqueio",ic:"🧱",guard:4,ds:"Guarda média."},
-  desarme :{id:"desarme",mode:"def",type:"tackle",nm:"Desarme",ic:"✋",steal:5,ds:"Tenta roubar: seu desarme vs o controle do rival."},
-  marcacao:{id:"marcacao",mode:"def",type:"pressure",nm:"Marcação",ic:"😖",guard:2,steal:2,ds:"Mistura guarda e desarme."},
-  carrinho:{id:"carrinho",mode:"def",type:"impact",nm:"Carrinho",ic:"💢",steal:3,sta:IMPACT_DMG,ds:"Entrada dura: desarme + dano de STA."},
+  passe   :{id:"passe",mode:"atk",type:"support",nm:"Tabela",ic:"🅿️",adv:3,ctrl:5,ds:"Toca e sobe com segurança."},
+  drible  :{id:"drible",mode:"atk",type:"support",nm:"Drible",ic:"👟",adv:5,ctrl:2,ds:"Arranca driblando o marcador."},
+  lancamento:{id:"lancamento",mode:"atk",type:"support",nm:"Lançamento",ic:"⚡",adv:7,ctrl:0,ds:"Lança longe: avança muito, expõe a bola."},
+  visao   :{id:"visao",mode:"atk",type:"support",nm:"Visão de Jogo",ic:"🧠",adv:2,ctrl:3,shot:6,ds:"Arma a jogada: turbina o próximo chute."},
+  finaliza:{id:"finaliza",mode:"atk",type:"finish",nm:"Finalização",ic:"⚽",shot:9,ds:"Finaliza no gol (só na zona de ataque)."},
+  colocado:{id:"colocado",mode:"atk",type:"finish",nm:"Chute Colocado",ic:"🪄",shot:6,pierce:5,ds:"No cantinho: passa pela defesa."},
+  bicuda  :{id:"bicuda",mode:"atk",type:"finish",nm:"Bicuda",ic:"💥",shot:12,impact:1,ds:"Chutaço: machuca quem estiver na frente."},
+  pancada :{id:"pancada",mode:"atk",type:"impact",nm:"Pancada",ic:"💢",adv:3,sta:IMPACT_DMG,ds:"Joga a bola no marcador: tira fôlego dele."},
+  defesa  :{id:"defesa",mode:"def",type:"block",nm:"Defesa",ic:"🧤",guard:7,ds:"Fecha o gol: difícil furar."},
+  bloqueio:{id:"bloqueio",mode:"def",type:"block",nm:"Bloqueio",ic:"🧱",guard:4,ds:"Bloqueia o lance."},
+  desarme :{id:"desarme",mode:"def",type:"tackle",nm:"Desarme",ic:"✋",steal:5,ds:"Dá o bote: rouba se vencer o controle do rival."},
+  marcacao:{id:"marcacao",mode:"def",type:"pressure",nm:"Marcação",ic:"😖",guard:2,steal:2,ds:"Pressiona: um pouco de tudo."},
+  carrinho:{id:"carrinho",mode:"def",type:"impact",nm:"Carrinho",ic:"💢",steal:3,sta:IMPACT_DMG,ds:"Entrada dura: rouba e tira fôlego."},
 };
 const ATK_DECK=[["passe",3],["drible",2],["lancamento",2],["visao",2],["finaliza",2],["colocado",1],["bicuda",1],["pancada",3]];
 const DEF_DECK=[["defesa",3],["bloqueio",2],["desarme",3],["marcacao",2],["carrinho",2]];
@@ -144,26 +143,22 @@ function buildDeck(spec){const d=[];for(const[id,n]of spec)for(let i=0;i<n;i++)d
 function drawHand(mode){const deck=shuffle(buildDeck(mode==="atk"?ATK_DECK:DEF_DECK));
   return deck.slice(0,HAND).map(id=>({...CARDS[id],uid:Math.random().toString(36).slice(2,8)}));}
 
-/* ------------------------------- FERAS ----------------------------------- */
 const BEASTS={
   tatu:{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:5,DEF:5,TEC:4},
   mino:{key:"mino",name:"Górtax, Minotauro de Ônix",crest:"🐂",color:"#2e3340",ATK:5,DEF:5,TEC:4},
 };
 
 /* =================== LÓGICA PURA (determinística) ======================== */
-// Zonas (absolutas): 0=Defesa Couraça · 1=Meio Couraça · 2=Meio Górtax · 3=Defesa Górtax
 const ZNAMES=["Defesa 🛡️","Meio 🟦","Meio 🟥","Ataque ⚽"];
 const zoneAdvance=(side,pos,step)=> side==="home"?Math.min(3,pos+step):Math.max(0,pos-step);
 const inShootZone=(side,pos)=> side==="home"?pos===3:pos===0;
-const kickoffPos=side=> side==="home"?1:2;   // recomeço no próprio meio
+const kickoffPos=side=> side==="home"?1:2;
 const opp=s=>s==="home"?"away":"home";
-
 function freshState(home,away){
   return {beasts:{home,away},turn:1,possession:"home",pos:kickoffPos("home"),
     score:{home:0,away:0},sta:{home:STA_MAX,away:STA_MAX},momentum:{home:0,away:0},
     suddenDeath:false,over:false,winner:null,reason:null};
 }
-// IA escolhe até MAXPLAY cartas, ciente do lado e da zona
 function aiPick(hand,mode,st,side){
   side=side||"away";
   if(mode==="atk"){
@@ -175,14 +170,12 @@ function aiPick(hand,mode,st,side){
     for(const c of sorted){ if(play.length>=MAXPLAY)break; if(c.type==="finish"){if(fin||!zone)continue;fin=true;} play.push(c); }
     return play;
   }
-  // defesa: se o atacante já está perto de chutar -> guarda; senão -> desarme (corta o avanço)
   const threat=inShootZone(opp(side),st.pos);
   const prio=c=> threat
     ? (c.type==="block"?6:c.type==="impact"?4:c.type==="tackle"?3:c.type==="pressure"?3:0)
     : (c.type==="tackle"?6:c.type==="impact"?5:c.type==="pressure"?4:c.type==="block"?2:0);
   return hand.slice().sort((a,b)=>prio(b)-prio(a)).slice(0,MAXPLAY);
 }
-
 function resolveContest(st,atkCards,defCards){
   const aSide=st.possession, dSide=opp(aSide);
   const A=st.beasts[aSide], D=st.beasts[dSide];
@@ -195,8 +188,7 @@ function resolveContest(st,atkCards,defCards){
   const dImp=defCards.filter(c=>c.type==="impact");
   const mom=st.momentum[aSide]||0;
   const inZone=inShootZone(aSide,st.pos);
-  if(fin&&!inZone) fin=null;            // só finaliza na zona de ataque
-
+  if(fin&&!inZone) fin=null;
   const advanceVal=atkCards.reduce((s,c)=>s+(c.adv||0),0)+A.ATK*0.5+mom;
   const controlVal=sup.reduce((s,c)=>s+(c.ctrl||0),0)+A.TEC+(fin?3:0);
   const shotBonus =sup.reduce((s,c)=>s+(c.shot||0),0);
@@ -204,37 +196,28 @@ function resolveContest(st,atkCards,defCards){
   const stealVal  =tackle.reduce((s,c)=>s+(c.steal||0),0)+dImp.reduce((s,c)=>s+(c.steal||0),0)+press.reduce((s,c)=>s+(c.steal||0),0)+D.TEC*0.3;
   const rawImpToD =aImp.reduce((s,c)=>s+(c.sta||0),0)+((fin&&fin.impact)?IMPACT_DMG:0);
   const rawImpToA =dImp.reduce((s,c)=>s+(c.sta||0),0);
-
   let outcome,newPos=st.pos,newPoss=aSide,impToD=0,impToA=0;
-  if(stealVal>controlVal){                         // ROUBO: X seu vs X do rival
-    outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; st.momentum[aSide]=0;
-  } else if(fin){                                  // FINALIZAÇÃO (na zona)
+  if(stealVal>controlVal){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; st.momentum[aSide]=0; }
+  else if(fin){
     const target=Math.max(0,guardVal-(fin.pierce||0));
     const shotVal=fin.shot+shotBonus+A.ATK*0.5+mom;
     outcome= shotVal>=target?"GOAL":"MISS";
-    impToD=rawImpToD; newPoss=dSide;
-    newPos= outcome==="GOAL"?kickoffPos(dSide):kickoffPos(dSide);
-    st.momentum[aSide]=0;
-  } else {                                         // AVANÇO: seu valor vs ALVO fixo (defesa para via roubo)
-    if(advanceVal>=ADV_TH){
-      const step=(advanceVal-ADV_TH>=BIGSTEP)?2:1;
+    impToD=rawImpToD; newPoss=dSide; newPos=kickoffPos(dSide); st.momentum[aSide]=0;
+  } else {
+    if(advanceVal>=ADV_TH){ const step=(advanceVal-ADV_TH>=BIGSTEP)?2:1;
       newPos=zoneAdvance(aSide,st.pos,step); outcome="ADVANCE"; impToD=rawImpToD;
       st.momentum[aSide]=Math.min(MOMCAP,mom+1);
     } else { outcome="STUFF"; st.momentum[aSide]=Math.max(0,mom-1); }
   }
   const staD={home:0,away:0}; staD[dSide]-=impToD; staD[aSide]-=impToA;
   if(outcome==="GOAL") staD[dSide]-=2;
-  const r={goalHome:0,goalAway:0,staHome:staD.home,staAway:staD.away,possession:newPoss,pos:newPos,type:"",text:"",outcome};
+  const r={goalHome:0,goalAway:0,staHome:staD.home,staAway:staD.away,possession:newPoss,pos:newPos,type:"",outcome};
   const hA=aSide==="home";
-  if(outcome==="GOAL"){ hA?r.goalHome=1:r.goalAway=1; r.type=hA?"GOAL":"CONCEDE"; r.text=hA?"GOOOL!":"Sofreu um gol... ⚽"; }
-  else if(outcome==="MISS"){ r.type=hA?"MISS":"DEFEND"; r.text=hA?"Defendeu! 🧤":"🧤 Você defendeu e recuperou a bola!"; }
-  else if(outcome==="TURNOVER"){ r.type=hA?"LOSE":"STEAL"; r.text=hA?"Roubaram sua bola! ✋":"✋ Você roubou a bola!"; }
-  else if(outcome==="ADVANCE"){ r.type=hA?"ADVANCE":"PRESSURED"; r.text=hA?`Avançou para ${ZNAMES[newPos]}. 👟`:`O rival avançou para ${ZNAMES[newPos]}.`; }
-  else { r.type=hA?"STUFF":"HELD"; r.text=hA?"A defesa segurou seu avanço. 🧱":"🧱 Você segurou o avanço do rival."; }
-  const dmgAway=(dSide==="away"?impToD:0)+(aSide==="away"?impToA:0);
-  const dmgHome=(dSide==="home"?impToD:0)+(aSide==="home"?impToA:0);
-  if(dmgAway>0) r.text+=` 💥 -${dmgAway} no Górtax`;
-  if(dmgHome>0) r.text+=` 💢 você -${dmgHome}`;
+  if(outcome==="GOAL") hA?r.goalHome=1:r.goalAway=1;
+  r.type = outcome==="GOAL"?(hA?"GOAL":"CONCEDE"): outcome==="MISS"?(hA?"MISS":"DEFEND")
+    : outcome==="TURNOVER"?(hA?"LOSE":"STEAL"): outcome==="ADVANCE"?(hA?"ADVANCE":"PRESSURED"):(hA?"STUFF":"HELD");
+  r.dmgAway=(dSide==="away"?impToD:0)+(aSide==="away"?impToA:0);
+  r.dmgHome=(dSide==="home"?impToD:0)+(aSide==="home"?impToA:0);
   return r;
 }
 function applyTurn(st,res){
@@ -250,41 +233,42 @@ function checkEnd(st,res){
   const diff=st.score.home-st.score.away;
   if(diff>=MERCY) return finish(st,"home","GOLEADA");
   if(diff<=-MERCY) return finish(st,"away","GOLEADA");
-  if(st.suddenDeath){
-    if(res.goalHome) return finish(st,"home","GOLDEN");
-    if(res.goalAway) return finish(st,"away","GOLDEN");
-    return {over:false};
-  }
-  if(st.turn>TURNS){
-    if(st.score.home!==st.score.away) return finish(st,st.score.home>st.score.away?"home":"away","TIME");
-    st.suddenDeath=true;
-  }
+  if(st.suddenDeath){ if(res.goalHome)return finish(st,"home","GOLDEN"); if(res.goalAway)return finish(st,"away","GOLDEN"); return{over:false}; }
+  if(st.turn>TURNS){ if(st.score.home!==st.score.away)return finish(st,st.score.home>st.score.away?"home":"away","TIME"); st.suddenDeath=true; }
   return {over:false};
 }
 
 /* ============================== JOGO (UI) ================================ */
 let G=null;
-const FW=620,FH=240,GMY1=90,GMY2=150;
-const ZONEX=[FW*0.125,FW*0.375,FW*0.625,FW*0.875];
+const FW=660, FH=400, BX=30, BY=20;
+const GOAL_L=BX, GOAL_R=FW-BX, GMY1=FH/2-46, GMY2=FH/2+46, NETD=22;
+const ZX=[FW*0.22, FW*0.41, FW*0.59, FW*0.78];
 
 function startGame(){
   const st=freshState({...BEASTS.tatu},{...BEASTS.mino});
-  G={st,ctx:null,canvas:null,busy:false,play:[],hand:[],players:[],ball:{x:ZONEX[st.pos],y:FH/2},
-     vfx:[],shake:0,anim:null,raf:0,animPoss:"home"};
-  setupPlayers();
-  renderMatch();
-  log("sys",`🏟️ ${st.beasts.home.crest} ${st.beasts.home.name} vs ${st.beasts.away.crest} ${st.beasts.away.name}`);
-  log("sys",`Sem sorte na resolução: tudo é valor vs valor. Avance até a Zona de Ataque para finalizar. ${TURNS} turnos.`);
+  G={st,ctx:null,canvas:null,busy:false,play:[],hand:[],players:[],
+     ball:{x:ZX[st.pos],y:FH/2,px:ZX[st.pos],py:FH/2,rot:0,trail:[],fire:0},
+     vfx:[],fire:[],shake:0,anim:null,raf:0,animPoss:"home",
+     cam:{s:1,x:FW/2,y:FH/2},camT:{s:1,x:FW/2,y:FH/2},slow:1,slowT:1,netRipple:{L:0,R:0}};
+  setupPlayers(); renderMatch();
+  log("sys",`🏟️ ${st.beasts.home.crest} ${st.beasts.home.name} entra em campo contra ${st.beasts.away.crest} ${st.beasts.away.name}`);
+  log("sys",`5 contra 5 · ${TURNS} turnos · avance até o Ataque para finalizar.`);
   loopStart(); nextTurn();
 }
 function setupPlayers(){
   G.players=[
-    {team:"home",role:"GK",ax:30,ay:120,x:30,y:120},
-    {team:"home",role:"D",ax:120,ay:120,x:120,y:120,star:true},
-    {team:"away",role:"GK",ax:590,ay:120,x:590,y:120},
-    {team:"away",role:"D",ax:500,ay:120,x:500,y:120,star:true},
-  ];
-  G.ball.x=ZONEX[G.st.pos]; G.ball.y=FH/2;
+    {team:"home",role:"GK", num:1,ax:GOAL_L+18,ay:FH/2},
+    {team:"home",role:"DEF",num:2,ax:FW*0.22,ay:FH*0.30},
+    {team:"home",role:"DEF",num:3,ax:FW*0.22,ay:FH*0.70},
+    {team:"home",role:"MID",num:5,ax:FW*0.40,ay:FH*0.50},
+    {team:"home",role:"FWD",num:9,ax:FW*0.54,ay:FH*0.50,star:true},
+    {team:"away",role:"GK", num:1,ax:GOAL_R-18,ay:FH/2},
+    {team:"away",role:"DEF",num:4,ax:FW*0.78,ay:FH*0.30},
+    {team:"away",role:"DEF",num:5,ax:FW*0.78,ay:FH*0.70},
+    {team:"away",role:"MID",num:8,ax:FW*0.60,ay:FH*0.50},
+    {team:"away",role:"FWD",num:10,ax:FW*0.46,ay:FH*0.50,star:true},
+  ].map(p=>({...p,x:p.ax,y:p.ay,flinch:0}));
+  G.ball.x=ZX[G.st.pos]; G.ball.y=FH/2; G.ball.px=G.ball.x; G.ball.py=G.ball.y;
 }
 function nextTurn(){
   if(G.st.over)return;
@@ -296,114 +280,221 @@ function executePlay(){
   if(G.play.length===0){ toast("Jogue ao menos uma carta"); return; }
   G.busy=true;
   const atk=G.st.possession==="home";
-  const aiMode=atk?"def":"atk";
-  const aiPlay=aiPick(drawHand(aiMode),aiMode,G.st,"away");
+  const aiPlay=aiPick(drawHand(atk?"def":"atk"),atk?"def":"atk",G.st,"away");
   const atkCards=atk?G.play:aiPlay, defCards=atk?aiPlay:G.play;
   const oldPos=G.st.pos;
   const res=resolveContest(G.st,atkCards,defCards);
-  log("sys",`${G.st.beasts.away.crest} Górtax: ${aiPlay.length?aiPlay.map(c=>c.ic).join(" "):"—"}`);
-  const anim=buildAnim(res,oldPos);
-  runAnim(anim,()=>{
-    const cls=res.goalHome?"goal":res.goalAway?"miss":(res.type==="STEAL"||res.type==="DEFEND"||res.type==="HELD")?"good":(res.type==="ADVANCE")?"adv":(res.type==="MISS"||res.type==="LOSE")?"miss":"";
-    log(cls,`T${Math.min(G.st.turn,TURNS)}: ${res.text}`);
+  log("sys",`${G.st.beasts.away.crest} Górtax joga: ${aiPlay.length?aiPlay.map(c=>c.ic).join(" "):"—"}`);
+  runAnim(buildAnim(res,oldPos),()=>{
+    const cls=res.type==="GOAL"?"goal":res.type==="CONCEDE"?"miss":(res.type==="STEAL"||res.type==="DEFEND"||res.type==="HELD")?"good":res.type==="ADVANCE"?"adv":(res.type==="MISS"||res.type==="LOSE"||res.type==="PRESSURED")?"miss":"";
+    let line=narrate(res);
+    if(res.dmgAway>0)line+=` 💥 -${res.dmgAway} fôlego do Górtax`;
+    if(res.dmgHome>0)line+=` 💢 você -${res.dmgHome}`;
+    log(cls,`T${Math.min(G.st.turn,TURNS)}: ${line}`);
     applyTurn(G.st,res); renderHud();
     const end=checkEnd(G.st,res);
-    setTimeout(()=>{ if(end.over) showResult(end); else nextTurn(); }, 600);
+    setTimeout(()=>{ if(end.over) showResult(end); else nextTurn(); }, res.type==="GOAL"||res.type==="CONCEDE"?500:400);
   });
 }
+function narrate(res){
+  const z=ZNAMES[res.pos];
+  switch(res.type){
+    case "GOAL": return pick(["⚽ GOOOL! No fundo da rede!","⚽ GOLAÇO! A bola morre no ângulo!","⚽ É GOL! Couraça estufa a rede!"]);
+    case "CONCEDE": return "😣 Górtax balança a sua rede...";
+    case "MISS": return pick(["🧤 Chutou — e o goleiro voa pra defender!","↗️ Pra fora! Por pouco!","🧤 Defendeu! Que goleiraço."]);
+    case "DEFEND": return "🧤 Que defesa! Você recupera a bola.";
+    case "ADVANCE": return pick([`👟 Troca de passes e chega ao ${z}.`,`👟 Couraça sobe o campo até o ${z}.`,`⚡ Belo lançamento! Avança ao ${z}.`]);
+    case "PRESSURED": return `⚠️ Górtax avança e chega ao ${z}.`;
+    case "STEAL": return "✋ Desarme! Você rouba a bola.";
+    case "LOSE": return "✋ Górtax dá o bote e rouba a bola!";
+    case "STUFF": return "🧱 A marcação fecha o espaço — sem avanço.";
+    case "HELD": return "🧱 Você fecha o espaço e segura o Górtax.";
+    default: return "…";
+  }
+}
 
-/* ------------------------- ANIMAÇÃO (zonas) ------------------------------ */
+/* ----------------------- ANIMAÇÃO (bola como protagonista) --------------- */
 function buildAnim(res,oldPos){
-  const aSide=G.st.possession;
-  const wps=[{x:ZONEX[oldPos],y:FH/2,dur:.2,poss:aSide}];
-  if(res.outcome==="GOAL"||res.outcome==="MISS"){
-    const goalX=aSide==="home"?FW-14:14;
-    wps.push({x:goalX,y:clamp(120+rnd(-20,20),GMY1+6,GMY2-6),dur:.3,poss:aSide,fx:res.outcome==="GOAL"?"goal":"save"});
-    wps.push({x:ZONEX[res.pos],y:FH/2,dur:.3,poss:res.possession});
+  const aSide=G.st.possession, dir=aSide==="home"?1:-1;
+  const sx=ZX[oldPos], gx=aSide==="home"?GOAL_R:GOAL_L, gIn=aSide==="home"?GOAL_R+NETD-6:GOAL_L-NETD+6;
+  const wps=[{x:sx,y:FH/2+rnd(-26,26),dur:.16,poss:aSide}];
+  const hit=(res.dmgAway>0||res.dmgHome>0);
+  if(res.outcome==="ADVANCE"){
+    const mid={x:(sx+ZX[res.pos])/2,y:FH/2+rnd(-70,70)};
+    wps.push({x:mid.x,y:mid.y,dur:.26,poss:aSide,fx:"pass"});
+    if(hit) wps.push({x:mid.x+dir*22,y:mid.y,dur:.12,poss:aSide,fx:"impact"});
+    wps.push({x:ZX[res.pos],y:FH/2+rnd(-34,34),dur:.28,poss:aSide,fx:"pass"});
+  } else if(res.outcome==="STUFF"){
+    wps.push({x:sx+dir*26,y:FH/2+rnd(-30,30),dur:.16,poss:aSide,fx:"stuff"});
+    wps.push({x:ZX[res.pos],y:FH/2,dur:.16,poss:res.possession});
   } else if(res.outcome==="TURNOVER"){
-    wps.push({x:ZONEX[res.pos],y:FH/2,dur:.3,poss:res.possession,fx:"steal"});
-  } else if(res.outcome==="ADVANCE"){
-    if(res.staAway<0||res.staHome<0) wps.push({x:(ZONEX[oldPos]+ZONEX[res.pos])/2,y:FH/2,dur:.2,poss:aSide,fx:"impact"});
-    wps.push({x:ZONEX[res.pos],y:FH/2,dur:.35,poss:aSide});
-  } else { // STUFF
-    wps.push({x:ZONEX[res.pos]+(aSide==="home"?14:-14),y:FH/2,dur:.18,poss:aSide,fx:"stuff"});
-    wps.push({x:ZONEX[res.pos],y:FH/2,dur:.2,poss:res.possession});
+    wps.push({x:sx+dir*20,y:FH/2+rnd(-20,20),dur:.16,poss:aSide,fx:"steal"});
+    wps.push({x:ZX[res.pos],y:FH/2,dur:.28,poss:res.possession});
+  } else { // GOAL / MISS
+    const setX=aSide==="home"?FW-BX-96:BX+96;
+    wps.push({x:setX,y:FH/2+rnd(-46,46),dur:.24,poss:aSide,fx:"pass"});
+    if(hit) wps.push({x:setX+dir*16,y:FH/2,dur:.1,poss:aSide,fx:"impact"});
+    const my=clamp(FH/2+rnd(-28,28),GMY1+12,GMY2-12);
+    // CHUTE: câmera lenta + zoom no gol + rastro de fogo
+    wps.push({x:gx-dir*6,y:my,dur:.52,poss:aSide,fx:"shot",slow:.32,cam:{s:1.75,x:gx-dir*36,y:FH/2}});
+    if(res.outcome==="GOAL"){
+      wps.push({x:gIn,y:my,dur:.34,poss:aSide,fx:"goal",slow:.3,cam:{s:1.95,x:gx-dir*6,y:FH/2}});
+      wps.push({x:gIn,y:my,dur:.8,poss:aSide,hold:1,cam:{s:1.95,x:gx-dir*6,y:FH/2}});
+    } else {
+      wps.push({x:gx-dir*30,y:my+rnd(-14,14),dur:.3,poss:aSide,fx:"save",cam:{s:1.6,x:gx-dir*40,y:FH/2}});
+    }
+    wps.push({x:ZX[res.pos],y:FH/2,dur:.3,poss:res.possession,cam:{s:1,x:FW/2,y:FH/2},slow:1});
   }
   return {wps};
 }
-function runAnim(anim,cb){ G.anim={wps:anim.wps,i:0,t:0,from:{...G.ball},cb}; if(anim.wps[0])G.animPoss=anim.wps[0].poss; }
+function runAnim(anim,cb){ G.anim={wps:anim.wps,i:0,t:0,from:{x:G.ball.x,y:G.ball.y},cb}; if(anim.wps[0])G.animPoss=anim.wps[0].poss; }
 function stepAnim(dt){
   const a=G.anim; if(!a)return;
-  const wp=a.wps[a.i]; if(!wp){const cb=a.cb;G.anim=null;cb&&cb();return;}
-  a.t+=dt/wp.dur; const k=clamp(a.t,0,1),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
-  G.ball.x=a.from.x+(wp.x-a.from.x)*e; G.ball.y=a.from.y+(wp.y-a.from.y)*e; G.animPoss=wp.poss;
+  const wp=a.wps[a.i];
+  if(!wp){ G.camT={s:1,x:FW/2,y:FH/2}; G.slowT=1; const cb=a.cb; G.anim=null; cb&&cb(); return; }
+  G.slowT = wp.slow!=null?wp.slow:1;
+  G.camT  = wp.cam? wp.cam : {s:1,x:FW/2,y:FH/2};
+  G.animPoss=wp.poss;
+  a.t += (dt*G.slow)/wp.dur;
+  const k=clamp(a.t,0,1), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  G.ball.x=a.from.x+(wp.x-a.from.x)*e; G.ball.y=a.from.y+(wp.y-a.from.y)*e;
+  if(wp.fx==="shot"||wp.fx==="goal") G.ball.fire=0.5;
   if(a.t>=1){ G.ball.x=wp.x;G.ball.y=wp.y; triggerFx(wp); a.from={x:wp.x,y:wp.y}; a.i++; a.t=0; }
 }
 function triggerFx(wp){
-  if(wp.fx==="goal"){G.shake=16;burst(G.ball.x,G.ball.y,"#f5c451",28);}
-  else if(wp.fx==="save"){G.shake=6;burst(G.ball.x,G.ball.y,"#8fd6ff",14);}
-  else if(wp.fx==="impact"){G.shake=10;burst(G.ball.x,G.ball.y,"#ff7b2d",16);}
-  else if(wp.fx==="steal"){burst(G.ball.x,G.ball.y,"#9cffb6",12);}
+  if(!wp.fx)return;
+  if(wp.fx==="pass"){ burst(G.ball.x,G.ball.y,"#ffffff",5); }
+  else if(wp.fx==="impact"){ G.shake=11; spawnFire(G.ball.x,G.ball.y,14); burst(G.ball.x,G.ball.y,"#ff7b2d",10); flinchNear(G.ball.x,G.ball.y); }
+  else if(wp.fx==="shot"){ G.ball.fire=0.6; spawnFire(G.ball.x,G.ball.y,10); }
+  else if(wp.fx==="goal"){ G.shake=20; spawnFire(G.ball.x,G.ball.y,40); burst(G.ball.x,G.ball.y,"#f5c451",30);
+    const side=G.animPoss==="home"?"R":"L"; G.netRipple[side]=1; showBig("GOOOOL!", "#f5c451"); }
+  else if(wp.fx==="save"){ G.shake=7; burst(G.ball.x,G.ball.y,"#8fd6ff",16); showBig("DEFENDEU!", "#8fd6ff"); }
+  else if(wp.fx==="steal"){ burst(G.ball.x,G.ball.y,"#9cffb6",12); flinchNear(G.ball.x,G.ball.y); }
+  else if(wp.fx==="stuff"){ burst(G.ball.x,G.ball.y,"#cdd6ec",6); }
 }
+function flinchNear(x,y){ let best=null,bd=40; for(const p of G.players){const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=p;}} if(best){best.flinch=.5; best.x+=(best.x<x?-1:1)*8;} }
 
 /* ------------------------------- CANVAS ---------------------------------- */
 function loopStart(){const f=t=>{drawFrame(t);G.raf=requestAnimationFrame(f);};G.raf=requestAnimationFrame(f);}
-function burst(x,y,c,n){for(let i=0;i<n;i++){const a=Math.random()*7,s=rnd(40,170);
+function burst(x,y,c,n){for(let i=0;i<n;i++){const a=Math.random()*7,s=rnd(40,180);
   G.vfx.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:.7,max:.7,c,sz:rnd(2,5)});}}
+function spawnFire(x,y,n){for(let i=0;i<n;i++){G.fire.push({x:x+rnd(-6,6),y:y+rnd(-6,6),vx:rnd(-35,35),vy:rnd(-95,-25),life:rnd(.4,.9),max:.9,sz:rnd(4,9)});}}
 let LAST=0;
 function drawFrame(ts){
   const ctx=G.ctx;if(!ctx)return;
   const now=(ts||0)/1000;let dt=now-(LAST||now);LAST=now;dt=Math.min(dt||0.016,.05);
-  if(G.anim)stepAnim(dt); steerPlayers(dt);
+  // câmera + câmera lenta (easing)
+  G.slow += (G.slowT-G.slow)*Math.min(1,dt*8);
+  G.cam.s += (G.camT.s-G.cam.s)*Math.min(1,dt*6);
+  G.cam.x += (G.camT.x-G.cam.x)*Math.min(1,dt*6);
+  G.cam.y += (G.camT.y-G.cam.y)*Math.min(1,dt*6);
+  if(G.anim)stepAnim(dt); steerPlayers(dt*(0.4+0.6*G.slow));
+  // bola: rotação + rastro
+  const mvx=G.ball.x-G.ball.px, mvy=G.ball.y-G.ball.py; const mv=Math.hypot(mvx,mvy);
+  G.ball.rot+=mv*0.06; G.ball.px=G.ball.x; G.ball.py=G.ball.y;
+  if(mv>0.6){ G.ball.trail.push({x:G.ball.x,y:G.ball.y,f:G.ball.fire>0}); if(G.ball.trail.length>14)G.ball.trail.shift(); }
+  if(G.ball.fire>0){ G.ball.fire-=dt; spawnFire(G.ball.x,G.ball.y,2); }
   for(let i=G.vfx.length-1;i>=0;i--){const v=G.vfx[i];v.x+=v.vx*dt;v.y+=v.vy*dt;v.vx*=0.92;v.vy*=0.92;v.life-=dt;if(v.life<=0)G.vfx.splice(i,1);}
+  for(let i=G.fire.length-1;i>=0;i--){const f=G.fire[i];f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy*=0.96;f.vx*=0.96;f.life-=dt;f.sz*=0.97;if(f.life<=0)G.fire.splice(i,1);}
   for(const p of G.players)if(p.flinch>0)p.flinch-=dt;
+  for(const s of ["L","R"])if(G.netRipple[s]>0)G.netRipple[s]-=dt*1.6;
   drawPitch(ctx);
 }
 function steerPlayers(dt){
-  const b=G.ball,poss=G.animPoss;
+  const b=G.ball,poss=G.animPoss,dteam=opp(poss),dir=poss==="home"?1:-1;
+  let carrier=null,cd=1e9,def=null,dd=1e9;
+  for(const p of G.players){ if(p.role==="GK")continue; const d=Math.hypot(p.x-b.x,p.y-b.y);
+    if(p.team===poss&&d<cd){cd=d;carrier=p;} if(p.team===dteam&&d<dd){dd=d;def=p;} }
   for(const p of G.players){
-    let tx,ty;
-    if(p.role==="GK"){tx=p.ax;ty=clamp(b.y,GMY1+6,GMY2-6);}
-    else if(p.team===poss){tx=b.x-(p.team==="home"?18:-18);ty=b.y;}
-    else {tx=(p.x+b.x)/2;ty=(p.y+b.y)/2;}
-    const dx=tx-p.x,dy=ty-p.y,d=Math.hypot(dx,dy)||1,spd=170;
-    if(d>2){p.x+=dx/d*Math.min(spd*dt,d);p.y+=dy/d*Math.min(spd*dt,d);}
-    p.x=clamp(p.x,14,FW-14);p.y=clamp(p.y,18,FH-18);
+    let tx=p.ax,ty=p.ay;
+    if(p.role==="GK"){ tx=p.ax; ty=clamp(b.y,GMY1+12,GMY2-12); }
+    else if(p.team===poss){ if(p===carrier){tx=b.x-dir*15;ty=b.y;} else {tx=p.ax+dir*46;ty=p.ay*0.68+b.y*0.32;} }
+    else { if(p===def){tx=b.x+dir*16;ty=b.y;} else {tx=p.ax-dir*14;ty=p.ay*0.7+b.y*0.3;} }
+    const dx=tx-p.x,dy=ty-p.y,d=Math.hypot(dx,dy)||1,spd=p.role==="GK"?130:205;
+    if(d>1){p.x+=dx/d*Math.min(spd*dt,d);p.y+=dy/d*Math.min(spd*dt,d);}
+    p.x=clamp(p.x,BX,FW-BX);p.y=clamp(p.y,BY+4,FH-BY-4);
   }
 }
+function dot(ctx,x,y){ctx.beginPath();ctx.arc(x,y,2.5,0,7);ctx.fillStyle="rgba(255,255,255,.7)";ctx.fill();}
 function drawPitch(ctx){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,FW,FH);
-  ctx.save(); if(G.shake>0.3){ctx.translate(rnd(-G.shake,G.shake),rnd(-G.shake,G.shake));G.shake*=0.86;}
-  for(let i=0;i<4;i++){ctx.fillStyle=i%2?"#176028":"#1a6b32";ctx.fillRect(i*FW/4,0,FW/4+1,FH);}
-  // zona de ataque atual destacada
-  const sz=inShootZone(G.animPoss,Math.round((G.ball.x/FW)*4-0.5));
-  ctx.strokeStyle="rgba(255,255,255,.35)";ctx.lineWidth=2;ctx.strokeRect(8,8,FW-16,FH-16);
-  for(let i=1;i<4;i++){ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(i*FW/4,8);ctx.lineTo(i*FW/4,FH-8);ctx.stroke();ctx.setLineDash([]);}
-  ctx.beginPath();ctx.arc(FW/2,FH/2,26,0,7);ctx.stroke();
-  ctx.fillStyle="rgba(255,255,255,.85)";ctx.fillRect(2,GMY1,6,GMY2-GMY1);ctx.fillRect(FW-8,GMY1,6,GMY2-GMY1);
+  ctx.save();
+  ctx.translate(FW/2,FH/2);ctx.scale(G.cam.s,G.cam.s);ctx.translate(-G.cam.x,-G.cam.y);
+  if(G.shake>0.3){ctx.translate(rnd(-G.shake,G.shake),rnd(-G.shake,G.shake));G.shake*=0.86;}
+  for(let i=0;i<10;i++){ctx.fillStyle=i%2?"#1f7a37":"#1b6e31";ctx.fillRect(i*FW/10,0,FW/10+1,FH);}
+  ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=2;
+  ctx.strokeRect(BX,BY,FW-2*BX,FH-2*BY);
+  ctx.beginPath();ctx.moveTo(FW/2,BY);ctx.lineTo(FW/2,FH-BY);ctx.stroke();
+  ctx.beginPath();ctx.arc(FW/2,FH/2,48,0,7);ctx.stroke();dot(ctx,FW/2,FH/2);
+  penBox(ctx,"L");penBox(ctx,"R");goalNet(ctx,"L");goalNet(ctx,"R");
   for(const p of G.players)drawPlayer(ctx,p);
-  drawBall(ctx,G.ball.x,G.ball.y);
+  drawFire(ctx);
+  drawBall(ctx);
   for(const v of G.vfx){ctx.globalAlpha=clamp(v.life/v.max,0,1);ctx.fillStyle=v.c;ctx.beginPath();ctx.arc(v.x,v.y,v.sz,0,7);ctx.fill();}ctx.globalAlpha=1;
+  ctx.restore();
+}
+function penBox(ctx,side){
+  const pbw=78,pbh=190,gaw=30,gah=100;
+  const x0=side==="L"?BX:FW-BX-pbw, gx0=side==="L"?BX:FW-BX-gaw;
+  ctx.strokeRect(x0,FH/2-pbh/2,pbw,pbh);
+  ctx.strokeRect(gx0,FH/2-gah/2,gaw,gah);
+  const sx=side==="L"?BX+54:FW-BX-54; dot(ctx,sx,FH/2);
+  ctx.beginPath(); if(side==="L")ctx.arc(sx,FH/2,32,-0.8,0.8); else ctx.arc(sx,FH/2,32,Math.PI-0.8,Math.PI+0.8); ctx.stroke();
+}
+function goalNet(ctx,side){
+  const x=side==="L"?BX:FW-BX, dir=side==="L"?-1:1, rip=G.netRipple[side]>0?G.netRipple[side]:0;
+  ctx.save();
+  ctx.strokeStyle="rgba(255,255,255,.9)";ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(x,GMY1);ctx.lineTo(x,GMY2);ctx.stroke(); // linha do gol
+  ctx.strokeStyle="rgba(220,230,255,.35)";ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){const yy=GMY1+(GMY2-GMY1)*i/5+Math.sin(rip*9+i)*rip*4;
+    ctx.beginPath();ctx.moveTo(x,yy);ctx.lineTo(x+dir*NETD,yy);ctx.stroke();}
+  for(let i=0;i<=4;i++){const xx=x+dir*NETD*i/4;
+    ctx.beginPath();ctx.moveTo(xx,GMY1);ctx.lineTo(xx,GMY2);ctx.stroke();}
+  ctx.strokeStyle="rgba(255,255,255,.9)";ctx.lineWidth=2;
+  ctx.strokeRect(Math.min(x,x+dir*NETD),GMY1,NETD,GMY2-GMY1);
+  ctx.restore();
+}
+function drawFire(ctx){
+  ctx.save();ctx.globalCompositeOperation="lighter";
+  for(const f of G.fire){const a=clamp(f.life/f.max,0,1); const r=f.sz;
+    const g=ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,r);
+    g.addColorStop(0,`rgba(255,${200*a+40|0},120,${0.9*a})`);
+    g.addColorStop(.5,`rgba(255,${120*a|0},30,${0.6*a})`);
+    g.addColorStop(1,`rgba(120,20,0,0)`);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(f.x,f.y,r,0,7);ctx.fill();}
   ctx.restore();
 }
 function px(ctx,x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
 function drawPlayer(ctx,p){
-  ctx.fillStyle="rgba(0,0,0,.28)";ctx.beginPath();ctx.ellipse(p.x,p.y+11,11,4,0,0,7);ctx.fill();
-  const owner=Math.hypot(p.x-G.ball.x,p.y-G.ball.y)<22;
-  if(owner){ctx.strokeStyle="#f5c451";ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.stroke();}
-  if(p.star){p.team==="home"?drawTatu(ctx,p.x,p.y,p.flinch>0):drawMino(ctx,p.x,p.y,p.flinch>0);return;}
-  ctx.fillStyle=p.team==="home"?"#3f7fa0":"#a04545";ctx.beginPath();ctx.arc(p.x,p.y,10,0,7);ctx.fill();
-  ctx.fillStyle="rgba(0,0,0,.5)";ctx.font="bold 9px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("GK",p.x,p.y);
+  ctx.fillStyle="rgba(0,0,0,.28)";ctx.beginPath();ctx.ellipse(p.x,p.y+12,12,4,0,0,7);ctx.fill();
+  const carrier=Math.hypot(p.x-G.ball.x,p.y-G.ball.y)<20;
+  if(carrier){ctx.strokeStyle="#f5c451";ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,16,0,7);ctx.stroke();}
+  if(p.star){ p.team==="home"?drawTatu(ctx,p.x,p.y,p.flinch>0):drawMino(ctx,p.x,p.y,p.flinch>0);
+    return; }
+  const col=p.team==="home"?"#3f86ad":"#b04646";
+  ctx.fillStyle=p.flinch>0?"#fff":col;ctx.beginPath();ctx.arc(p.x,p.y,11,0,7);ctx.fill();
+  ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle="#fff";ctx.font="bold 10px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(p.role==="GK"?"GK":p.num,p.x,p.y);
 }
-function drawBall(ctx,x,y){ctx.save();ctx.translate(x,y);
-  ctx.fillStyle="#e9dcc4";ctx.beginPath();ctx.arc(0,0,7,0,7);ctx.fill();ctx.strokeStyle="#5a4a36";ctx.lineWidth=1.4;ctx.stroke();
-  ctx.strokeStyle="#ff3b3b";ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,0,4,0,7);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(-6.5,0);ctx.lineTo(6.5,0);ctx.moveTo(0,-6.5);ctx.lineTo(0,6.5);ctx.stroke();ctx.restore();}
-function drawTatu(ctx,cx,cy,fl){ctx.save();ctx.translate(cx,cy);ctx.scale(.6,.6);if(fl)ctx.globalAlpha=.8;
+function drawBall(ctx){
+  const b=G.ball;
+  for(let i=0;i<b.trail.length;i++){const t=b.trail[i],a=i/b.trail.length;
+    ctx.globalAlpha=a*0.5;ctx.fillStyle=t.f?"#ff8a3d":"#fff";ctx.beginPath();ctx.arc(t.x,t.y,7*a,0,7);ctx.fill();}
+  ctx.globalAlpha=1;
+  ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rot);
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(0,0,8,0,7);ctx.fill();
+  ctx.strokeStyle="#33405a";ctx.lineWidth=1.3;ctx.stroke();
+  ctx.fillStyle="#222a3a"; // pentágono central girando (dá sensação de rolar)
+  ctx.beginPath();for(let i=0;i<5;i++){const a=i/5*7;const r=3.3;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();
+  ctx.restore();
+}
+function drawTatu(ctx,cx,cy,fl){ctx.save();ctx.translate(cx,cy);ctx.scale(.62,.62);if(fl)ctx.globalAlpha=.85;
   px(ctx,-20,-6,40,42,fl?"#cfc0a0":"#7a6a4a");for(let i=-16;i<18;i+=8)px(ctx,i,-6,2,42,"#5a4d34");
   px(ctx,-6,6,12,3,"#b3372f");px(ctx,-12,-28,24,24,"#8a7a58");px(ctx,-12,-28,24,7,"#5a4d34");
   px(ctx,4,-18,8,5,"#c9b889");px(ctx,-7,-17,4,4,"#39d0ff");px(ctx,-26,0,8,20,"#7a6a4a");px(ctx,18,0,8,20,"#7a6a4a");ctx.restore();}
-function drawMino(ctx,cx,cy,fl){ctx.save();ctx.translate(cx,cy);ctx.scale(.6,.6);if(fl)ctx.globalAlpha=.8;
+function drawMino(ctx,cx,cy,fl){ctx.save();ctx.translate(cx,cy);ctx.scale(.62,.62);if(fl)ctx.globalAlpha=.85;
   px(ctx,-22,-8,44,44,fl?"#9aa0ac":"#2e3340");px(ctx,-7,6,14,3,"#c0392b");px(ctx,-13,-30,26,24,"#3a4150");
   px(ctx,-20,-32,8,5,"#cbb58a");px(ctx,12,-32,8,5,"#cbb58a");px(ctx,-9,-20,5,5,"#ff5151");px(ctx,4,-20,5,5,"#ff5151");
   px(ctx,-30,-2,9,22,"#2e3340");px(ctx,21,-2,9,22,"#2e3340");ctx.restore();}
@@ -414,12 +505,12 @@ function renderMatch(){
     <div class="scoreboard">
       <div class="team home"><div class="nm">${G.st.beasts.home.crest} Couraça</div>
         <div class="stabar"><div id="staH" style="width:100%"></div></div>
-        <div style="font-size:10px" class="muted">STA <span id="staHn">100</span></div></div>
+        <div style="font-size:10px" class="muted">fôlego <span id="staHn">100</span></div></div>
       <div class="scoremid"><div class="sc"><span id="scH">0</span> <span class="muted">:</span> <span id="scA">0</span></div>
         <div class="turn" id="turnLbl">Turno 1 / ${TURNS}</div></div>
       <div class="team away"><div class="nm">Górtax ${G.st.beasts.away.crest}</div>
         <div class="stabar"><div id="staA" style="width:100%;background:linear-gradient(90deg,#c0392b,#ff6b6b)"></div></div>
-        <div style="font-size:10px;text-align:right" class="muted">STA <span id="staAn">100</span></div></div>
+        <div style="font-size:10px;text-align:right" class="muted">fôlego <span id="staAn">100</span></div></div>
     </div>
     <div class="dir" id="dir"></div>
     <div class="zonebar" id="zonebar"></div>
@@ -443,31 +534,27 @@ function renderMatch(){
 }
 function renderZonebar(){
   const zb=$("#zonebar");if(!zb)return; const atk=G.st.possession;
-  zb.innerHTML=ZNAMES.map((nm,i)=>{
-    const ball=i===G.st.pos, shoot=inShootZone(atk,i);
-    return `<div class="zcell ${ball?'ball':''} ${shoot?'shoot':''}"><span class="zl">${nm}</span><span class="b">${ball?'⚽':''}</span></div>`;
-  }).join("");
+  zb.innerHTML=ZNAMES.map((nm,i)=>{const ball=i===G.st.pos,shoot=inShootZone(atk,i);
+    return `<div class="zcell ${ball?'ball':''} ${shoot?'shoot':''}"><span class="zl">${nm}</span><span class="b">${ball?'⚽':''}</span></div>`;}).join("");
   const d=$("#dir"); if(d) d.innerHTML = G.st.possession==="home"
-    ? `${G.st.beasts.home.crest} Couraça ataca →  <span class="muted">(precisa chegar em <b>Ataque ⚽</b> p/ finalizar)</span>`
-    : `<span class="muted">(defenda!)</span>  ← ataca Górtax ${G.st.beasts.away.crest}`;
+    ? `${G.st.beasts.home.crest} Você ataca →  <span class="muted">(chegue em <b>Ataque ⚽</b> p/ finalizar)</span>`
+    : `<span class="muted">defenda!</span>  ← ataca Górtax ${G.st.beasts.away.crest}`;
 }
 function cardEl(c,mini,onclick,disabled){
   const el=document.createElement("div");
   el.className=`pcard ${c.type} ${mini?"mini":""} ${disabled?"disabled":""}`;
-  const vals=[]; if(c.adv)vals.push("avanço "+c.adv); if(c.shot)vals.push("chute "+c.shot);
-  if(c.guard)vals.push("guarda "+c.guard); if(c.steal)vals.push("desarme "+c.steal);
-  if(c.pierce)vals.push("fura "+c.pierce); if(c.sta)vals.push("💥STA "+c.sta);
+  const v=[]; if(c.adv)v.push("avanço "+c.adv); if(c.ctrl)v.push("controle "+c.ctrl); if(c.shot)v.push("chute "+c.shot);
+  if(c.pierce)v.push("fura "+c.pierce); if(c.guard)v.push("guarda "+c.guard); if(c.steal)v.push("desarme "+c.steal); if(c.sta)v.push("💥 "+c.sta);
   el.innerHTML=`<div class="tag">${typeLabel(c.type)}</div><div class="ic">${c.ic}</div>
-    <div class="nm">${c.nm}</div><div class="vals">${vals.join(" · ")}</div><div class="ds">${c.ds}</div>`;
+    <div class="nm">${c.nm}</div><div class="vals">${v.map(x=>`<b>${x}</b>`).join("")}</div><div class="ds">${c.ds}</div>`;
   el.onclick=onclick; return el;
 }
-function typeLabel(t){return{support:"AVANÇO",finish:"FINAL.",impact:"IMPACTO",block:"GUARDA",tackle:"DESARME",pressure:"PRESSÃO"}[t]||t;}
+function typeLabel(t){return{support:"AVANÇO",finish:"FINALIZAR",impact:"IMPACTO",block:"GUARDA",tackle:"DESARME",pressure:"PRESSÃO"}[t]||t;}
 function renderHandArea(){
   renderZonebar();
-  const atk=G.st.possession==="home";
-  const inZone=inShootZone("home",G.st.pos);
+  const atk=G.st.possession==="home", inZone=inShootZone("home",G.st.pos);
   $("#zoneTitle").textContent= atk?"Sua jogada (ataque)":"Sua jogada (defesa)";
-  $("#zoneRule").textContent= (atk?(inZone?"pode finalizar! · ":"avance até Ataque p/ finalizar · "):"")+`até ${MAXPLAY} (${G.play.length}/${MAXPLAY})`;
+  $("#zoneRule").textContent= (atk?(inZone?"⚽ pode finalizar! · ":"avance até o Ataque · "):"")+`até ${MAXPLAY} (${G.play.length}/${MAXPLAY})`;
   $("#handHint").textContent="toque p/ jogar";
   const pz=$("#playzone");pz.innerHTML="";pz.classList.toggle("empty",G.play.length===0);
   G.play.forEach((c,idx)=>pz.appendChild(cardEl(c,true,()=>{if(G.busy)return;G.play.splice(idx,1);renderHandArea();})));
@@ -479,12 +566,9 @@ function renderHandArea(){
     const el=cardEl(c,false,()=>{
       if(G.busy)return;
       if(used){G.play=G.play.filter(x=>x!==c);}
-      else{
-        if(c.type==="finish"&&!inZone){toast("Só dá pra finalizar na Zona de Ataque!");return;}
+      else{ if(c.type==="finish"&&!inZone){toast("Só dá pra finalizar no Ataque!");return;}
         if(c.type==="finish"&&G.play.some(x=>x.type==="finish")){toast("Só 1 finalização por turno!");return;}
-        if(G.play.length>=MAXPLAY){toast("Máximo de "+MAXPLAY+" cartas");return;}
-        G.play.push(c);
-      }
+        if(G.play.length>=MAXPLAY){toast("Máximo de "+MAXPLAY+" cartas");return;} G.play.push(c); }
       renderHandArea();
     },(finishBlocked||capBlocked)&&!used);
     if(used)el.style.outline="2px solid var(--gold)";
@@ -504,24 +588,22 @@ function banner(cb){
   const ov=document.createElement("div");ov.id="banner";
   ov.innerHTML=`<div class="big"><div class="t1">${G.st.suddenDeath?"MORTE SÚBITA":"TURNO "+Math.min(G.st.turn,TURNS)+" / "+TURNS}</div>
     <div class="t2" style="color:${atk?'var(--home)':'var(--away)'}">${atk?"⚔️ SEU ATAQUE":"🛡️ DEFENDA!"}</div></div>`;
-  document.body.appendChild(ov);setTimeout(()=>{ov.remove();cb&&cb();},950);
+  document.body.appendChild(ov);setTimeout(()=>{ov.remove();cb&&cb();},900);
 }
+function showBig(txt,color){const o=document.createElement("div");o.className="bigtext";o.style.color=color;o.textContent=txt;document.body.appendChild(o);setTimeout(()=>o.remove(),1400);}
 function showResult(end){
   cancelAnimationFrame(G.raf);
   const win=end.winner==="home";
   const names={home:"Couraça",away:"Górtax"};
-  const reason={KO:"por NOCAUTE de STA! 💀",TIME:"no placar ao fim dos turnos.",GOLDEN:"com GOL DE OURO na morte súbita! ✨",GOLEADA:"por GOLEADA (5 de diferença)! 🔥"}[end.reason];
+  const reason={KO:"por NOCAUTE de fôlego! 💀",TIME:"no placar final.",GOLDEN:"com GOL DE OURO na morte súbita! ✨",GOLEADA:"por GOLEADA (5 de diferença)! 🔥"}[end.reason];
   app.innerHTML=`<div class="screen center" style="padding-top:6vh">
-    <div style="font-size:58px">${win?"🏆":"💀"}</div>
-    <h1 class="${win?'gold':'bad'}">${win?"VITÓRIA!":"Derrota"}</h1>
+    <div style="font-size:58px">${win?"🏆":"💀"}</div><h1 class="${win?'gold':'bad'}">${win?"VITÓRIA!":"Derrota"}</h1>
     <p>${names[end.winner]} venceu ${reason}</p>
-    <div class="card-ui" style="margin-top:14px;display:inline-block;min-width:260px">
-      <h3>Placar final</h3>
+    <div class="card-ui" style="margin-top:14px;display:inline-block;min-width:260px"><h3>Placar final</h3>
       <p style="font-size:22px;font-weight:900;color:var(--txt)">${G.st.score.home} <span class="muted">x</span> ${G.st.score.away}</p>
-      <p class="muted" style="font-size:12px">STA — Couraça ${Math.round(G.st.sta.home)} · Górtax ${Math.round(G.st.sta.away)}</p>
-    </div>
+      <p class="muted" style="font-size:12px">fôlego — Couraça ${Math.round(G.st.sta.home)} · Górtax ${Math.round(G.st.sta.away)}</p></div>
     <button class="btn primary full" id="again" style="margin-top:16px;max-width:300px">↻ Jogar de novo</button>
-    <p class="muted" style="font-size:11px;margin-top:16px">World Cup Beasts · Cartas determinísticas + zonas (Parte 1)</p>
+    <p class="muted" style="font-size:11px;margin-top:16px">World Cup Beasts · 5v5 (Parte 1)</p>
   </div>`;
   $("#again").onclick=startGame;
 }
@@ -531,23 +613,20 @@ function toast(msg){const t=document.createElement("div");t.className="toast";t.
 function screenTitle(){
   app.innerHTML=`<div class="screen center" style="padding-top:6vh">
     <div style="font-size:54px">🛡️⚽</div><h1>WORLD CUP BEASTS</h1>
-    <p style="max-width:450px;margin:6px auto">Duelo de cartas onde tudo é <b>valor vs valor</b> — sem sorte na resolução.
-      Você comanda <b class="gold">Couraça, o Tatu de Guerra</b>.</p>
+    <p style="max-width:450px;margin:6px auto">Duelo de cartas <b>5 contra 5</b>. Você comanda <b class="gold">Couraça, o Tatu de Guerra</b>.</p>
     <div class="card-ui" style="max-width:440px;margin:14px auto;text-align:left">
       <h3>Como funciona</h3>
       <p>• <b>${TURNS} turnos.</b> Quem tem a bola <b>ataca</b>; o outro <b>defende</b>.</p>
-      <p>• <b>Campo em 4 zonas.</b> Avance (avanço vs guarda) até a <b>Zona de Ataque</b> para poder <b>finalizar</b>.</p>
-      <p>• <b>Tudo é número:</b> roubo = seu controle vs desarme do rival · gol = chute vs guarda · atingiu o alvo, <b>acontece</b>.</p>
-      <p>• Regras: <b>1 finalização</b>/turno, resto empilha (até ${MAXPLAY}). <b>STA = vida</b> (💥); zerou = nocaute.</p>
-      <p>• Vitória: placar (empate→morte súbita) · <b>5 de diferença</b> · <b>nocaute</b>.</p>
+      <p>• Monte a jogada com <b>cartas</b> (até ${MAXPLAY}; só <b>1 finalização</b>). Cada carta tem valores claros.</p>
+      <p>• <b>Avance</b> pelo campo (barra de cima: defesa→meio→ataque) e <b>finalize no Ataque</b> — a bola vai rolar até o fundo do gol. ⚽🔥</p>
+      <p>• <b>Fôlego</b> é vida (💥). Vitória: placar (empate→morte súbita) · 5 de diferença · nocaute.</p>
     </div>
     <button class="btn primary" id="play" style="max-width:300px;width:100%">▶ Entrar em campo</button>
-    <p class="muted" style="font-size:11px;margin-top:16px">Parte 1 — cartas determinísticas + zonas</p>
+    <p class="muted" style="font-size:11px;margin-top:16px">Parte 1 — 5v5 com campo animado</p>
   </div>`;
   $("#play").onclick=startGame;
 }
 
-/* --------- exporta lógica pura p/ teste headless -------------------------- */
 if(typeof module!=="undefined"&&module.exports){
   module.exports={freshState,resolveContest,aiPick,applyTurn,checkEnd,drawHand,inShootZone,CARDS,BEASTS,
     set:o=>{if(o.IMPACT_DMG!=null){IMPACT_DMG=o.IMPACT_DMG;CARDS.pancada.sta=o.IMPACT_DMG;CARDS.carrinho.sta=o.IMPACT_DMG;}
