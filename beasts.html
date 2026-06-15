@@ -249,7 +249,8 @@ function startGame(){
   G={st,ctx:null,canvas:null,busy:false,play:[],hand:[],players:[],
      ball:{x:ZX[st.pos],y:FH/2,px:ZX[st.pos],py:FH/2,rot:0,trail:[],fire:0},
      vfx:[],fire:[],shake:0,anim:null,raf:0,animPoss:"home",
-     cam:{s:1,x:FW/2,y:FH/2},camT:{s:1,x:FW/2,y:FH/2},slow:1,slowT:1,netRipple:{L:0,R:0}};
+     cam:{s:1,x:FW/2,y:FH/2},camT:{s:1,x:FW/2,y:FH/2},slow:1,slowT:1,netRipple:{L:0,R:0},
+     phase:"buildup",challenge:null,shooter:null,shotSpot:null,carrier:null};
   setupPlayers(); renderMatch();
   log("sys",`🏟️ ${st.beasts.home.crest} ${st.beasts.home.name} entra em campo contra ${st.beasts.away.crest} ${st.beasts.away.name}`);
   log("sys",`5 contra 5 · ${TURNS} turnos · avance até o Ataque para finalizar.`);
@@ -313,62 +314,74 @@ function narrate(res){
   }
 }
 
-/* ----------------------- ANIMAÇÃO (bola como protagonista) --------------- */
+/* -------------------- ANIMAÇÃO (revezamento + chute de verdade) ----------- */
+// Fases: buildup (constrói/avança), shot/goal/save (a bola voa SOZINHA p/ o gol).
+// "challenge" = o momento do bote: UM zagueiro investe na bola; fora disso a
+// defesa fica em LINHA (recuando) e os companheiros ACOMPANHAM o ataque.
 function buildAnim(res,oldPos){
   const aSide=G.st.possession, dir=aSide==="home"?1:-1;
-  const sx=ZX[oldPos], gx=aSide==="home"?GOAL_R:GOAL_L, gIn=aSide==="home"?GOAL_R+NETD-6:GOAL_L-NETD+6;
-  const wps=[{x:sx,y:FH/2+rnd(-26,26),dur:.16,poss:aSide}];
+  const sx=ZX[oldPos], gx=aSide==="home"?GOAL_R:GOAL_L, gIn=aSide==="home"?GOAL_R+NETD-7:GOAL_L-NETD+7;
   const hit=(res.dmgAway>0||res.dmgHome>0);
+  const wps=[{x:sx,y:FH/2+rnd(-24,24),dur:.16,poss:aSide,phase:"buildup"}];
   if(res.outcome==="ADVANCE"){
-    const mid={x:(sx+ZX[res.pos])/2,y:FH/2+rnd(-70,70)};
-    wps.push({x:mid.x,y:mid.y,dur:.26,poss:aSide,fx:"pass"});
-    if(hit) wps.push({x:mid.x+dir*22,y:mid.y,dur:.12,poss:aSide,fx:"impact"});
-    wps.push({x:ZX[res.pos],y:FH/2+rnd(-34,34),dur:.28,poss:aSide,fx:"pass"});
+    const cx=(sx+ZX[res.pos])/2, vy=(Math.random()<.5?-1:1)*rnd(34,58);
+    wps.push({x:cx-dir*8,y:FH/2+rnd(-26,26),dur:.22,poss:aSide,phase:"buildup",challenge:true}); // zagueiro dá o bote
+    wps.push({x:cx+dir*14,y:FH/2+vy,dur:.16,poss:aSide,phase:"buildup",fx:"dodge"});             // driblou e se esquiva
+    if(hit) wps.push({x:cx+dir*26,y:FH/2+vy,dur:.1,poss:aSide,phase:"buildup",fx:"impact"});
+    wps.push({x:ZX[res.pos],y:FH/2+rnd(-24,24),dur:.26,poss:aSide,phase:"buildup",fx:"pass"});    // avançou
   } else if(res.outcome==="STUFF"){
-    wps.push({x:sx+dir*26,y:FH/2+rnd(-30,30),dur:.16,poss:aSide,fx:"stuff"});
-    wps.push({x:ZX[res.pos],y:FH/2,dur:.16,poss:res.possession});
+    wps.push({x:sx+dir*20,y:FH/2+rnd(-24,24),dur:.2,poss:aSide,phase:"buildup",challenge:true,fx:"stuff"}); // a defesa fecha
+    wps.push({x:sx-dir*8,y:FH/2,dur:.18,poss:aSide,phase:"buildup"});                                       // bola sobra p/ você
   } else if(res.outcome==="TURNOVER"){
-    wps.push({x:sx+dir*20,y:FH/2+rnd(-20,20),dur:.16,poss:aSide,fx:"steal"});
-    wps.push({x:ZX[res.pos],y:FH/2,dur:.28,poss:res.possession});
-  } else { // GOAL / MISS
-    const setX=aSide==="home"?FW-BX-96:BX+96;
-    wps.push({x:setX,y:FH/2+rnd(-46,46),dur:.24,poss:aSide,fx:"pass"});
-    if(hit) wps.push({x:setX+dir*16,y:FH/2,dur:.1,poss:aSide,fx:"impact"});
-    const my=clamp(FH/2+rnd(-28,28),GMY1+12,GMY2-12);
-    // CHUTE: câmera lenta + zoom no gol + rastro de fogo
-    wps.push({x:gx-dir*6,y:my,dur:.52,poss:aSide,fx:"shot",slow:.32,cam:{s:1.75,x:gx-dir*36,y:FH/2}});
+    wps.push({x:sx+dir*10,y:FH/2+rnd(-20,20),dur:.2,poss:aSide,phase:"buildup",challenge:true,fx:"steal"}); // bote certeiro
+    wps.push({x:ZX[res.pos],y:FH/2,dur:.32,poss:res.possession,phase:"buildup"});                           // rival sai jogando
+  } else { // GOAL / MISS — CHUTE: a bola vai SOZINHA em câmera lenta
+    const setX=aSide==="home"?FW-BX-110:BX+110;
+    wps.push({x:setX,y:FH/2+rnd(-44,44),dur:.24,poss:aSide,phase:"buildup",fx:"pass"});
+    wps.push({x:setX+dir*16,y:FH/2,dur:.18,poss:aSide,phase:"buildup",challenge:true});            // último zagueiro tenta travar
+    if(hit) wps.push({x:setX+dir*24,y:FH/2,dur:.1,poss:aSide,phase:"buildup",fx:"impact"});
+    const my=clamp(FH/2+rnd(-30,30),GMY1+14,GMY2-14);
+    wps.push({x:gx-dir*4,y:my,dur:.55,poss:aSide,phase:"shot",slow:.3,cam:{s:1.72,x:gx-dir*40,y:FH/2},fx:"shotstart"});
     if(res.outcome==="GOAL"){
-      wps.push({x:gIn,y:my,dur:.34,poss:aSide,fx:"goal",slow:.3,cam:{s:1.95,x:gx-dir*6,y:FH/2}});
-      wps.push({x:gIn,y:my,dur:.8,poss:aSide,hold:1,cam:{s:1.95,x:gx-dir*6,y:FH/2}});
+      wps.push({x:gIn,y:my,dur:.34,poss:aSide,phase:"goal",slow:.32,cam:{s:1.95,x:gx-dir*8,y:FH/2},fx:"goal"});
+      wps.push({x:gIn,y:my,dur:.8,poss:aSide,phase:"goal",cam:{s:1.95,x:gx-dir*8,y:FH/2}});
     } else {
-      wps.push({x:gx-dir*30,y:my+rnd(-14,14),dur:.3,poss:aSide,fx:"save",cam:{s:1.6,x:gx-dir*40,y:FH/2}});
+      wps.push({x:gx-dir*30,y:my+rnd(-12,12),dur:.32,poss:aSide,phase:"save",cam:{s:1.62,x:gx-dir*44,y:FH/2},fx:"save"});
     }
-    wps.push({x:ZX[res.pos],y:FH/2,dur:.3,poss:res.possession,cam:{s:1,x:FW/2,y:FH/2},slow:1});
+    wps.push({x:ZX[res.pos],y:FH/2,dur:.3,poss:res.possession,phase:"buildup",cam:{s:1,x:FW/2,y:FH/2},slow:1});
   }
   return {wps};
 }
-function runAnim(anim,cb){ G.anim={wps:anim.wps,i:0,t:0,from:{x:G.ball.x,y:G.ball.y},cb}; if(anim.wps[0])G.animPoss=anim.wps[0].poss; }
+function nearestOf(team){ let b=null,bd=1e9; for(const p of G.players){if(p.team!==team||p.role==="GK")continue;
+  const d=Math.hypot(p.x-G.ball.x,p.y-G.ball.y);if(d<bd){bd=d;b=p;}} return b; }
+function runAnim(anim,cb){ G.anim={wps:anim.wps,i:0,t:0,from:{x:G.ball.x,y:G.ball.y},cb,started:false};
+  G.phase="buildup";G.challenge=null;G.shooter=null;G.shotSpot=null; if(anim.wps[0])G.animPoss=anim.wps[0].poss; }
 function stepAnim(dt){
   const a=G.anim; if(!a)return;
   const wp=a.wps[a.i];
-  if(!wp){ G.camT={s:1,x:FW/2,y:FH/2}; G.slowT=1; const cb=a.cb; G.anim=null; cb&&cb(); return; }
-  G.slowT = wp.slow!=null?wp.slow:1;
-  G.camT  = wp.cam? wp.cam : {s:1,x:FW/2,y:FH/2};
-  G.animPoss=wp.poss;
+  if(!wp){ G.phase="buildup";G.challenge=null;G.shooter=null; G.camT={s:1,x:FW/2,y:FH/2};G.slowT=1; const cb=a.cb;G.anim=null;cb&&cb(); return; }
+  if(!a.started){ a.started=true;
+    G.slowT = wp.slow!=null?wp.slow:1;
+    G.camT  = wp.cam? wp.cam : {s:1,x:FW/2,y:FH/2};
+    if(wp.challenge) G.challenge={p:nearestOf(opp(wp.poss)),t:.5};
+    if(wp.phase==="shot"&&!G.shooter){ const s=nearestOf(wp.poss); G.shooter=s; G.shotSpot=s?{x:s.x,y:s.y}:{x:G.ball.x,y:G.ball.y}; }
+    if(wp.fx==="shotstart") G.ball.fire=0.7;
+  }
+  G.animPoss=wp.poss; G.phase=wp.phase||"buildup";
   a.t += (dt*G.slow)/wp.dur;
   const k=clamp(a.t,0,1), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
   G.ball.x=a.from.x+(wp.x-a.from.x)*e; G.ball.y=a.from.y+(wp.y-a.from.y)*e;
-  if(wp.fx==="shot"||wp.fx==="goal") G.ball.fire=0.5;
-  if(a.t>=1){ G.ball.x=wp.x;G.ball.y=wp.y; triggerFx(wp); a.from={x:wp.x,y:wp.y}; a.i++; a.t=0; }
+  if(a.t>=1){ G.ball.x=wp.x;G.ball.y=wp.y; triggerFx(wp); a.from={x:wp.x,y:wp.y}; a.i++; a.t=0; a.started=false; }
 }
 function triggerFx(wp){
   if(!wp.fx)return;
-  if(wp.fx==="pass"){ burst(G.ball.x,G.ball.y,"#ffffff",5); }
+  if(wp.fx==="pass") burst(G.ball.x,G.ball.y,"#ffffff",5);
+  else if(wp.fx==="dodge") burst(G.ball.x,G.ball.y,"#cdd6ec",6);
   else if(wp.fx==="impact"){ G.shake=11; spawnFire(G.ball.x,G.ball.y,14); burst(G.ball.x,G.ball.y,"#ff7b2d",10); flinchNear(G.ball.x,G.ball.y); }
-  else if(wp.fx==="shot"){ G.ball.fire=0.6; spawnFire(G.ball.x,G.ball.y,10); }
+  else if(wp.fx==="shotstart"){ G.ball.fire=0.7; spawnFire(G.ball.x,G.ball.y,12); }
   else if(wp.fx==="goal"){ G.shake=20; spawnFire(G.ball.x,G.ball.y,40); burst(G.ball.x,G.ball.y,"#f5c451",30);
-    const side=G.animPoss==="home"?"R":"L"; G.netRipple[side]=1; showBig("GOOOOL!", "#f5c451"); }
-  else if(wp.fx==="save"){ G.shake=7; burst(G.ball.x,G.ball.y,"#8fd6ff",16); showBig("DEFENDEU!", "#8fd6ff"); }
+    const side=G.animPoss==="home"?"R":"L"; G.netRipple[side]=1; showBig("GOOOOL!","#f5c451"); }
+  else if(wp.fx==="save"){ G.shake=7; burst(G.ball.x,G.ball.y,"#8fd6ff",16); showBig("DEFENDEU!","#8fd6ff"); }
   else if(wp.fx==="steal"){ burst(G.ball.x,G.ball.y,"#9cffb6",12); flinchNear(G.ball.x,G.ball.y); }
   else if(wp.fx==="stuff"){ burst(G.ball.x,G.ball.y,"#cdd6ec",6); }
 }
@@ -398,19 +411,36 @@ function drawFrame(ts){
   for(let i=G.fire.length-1;i>=0;i--){const f=G.fire[i];f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy*=0.96;f.vx*=0.96;f.life-=dt;f.sz*=0.97;if(f.life<=0)G.fire.splice(i,1);}
   for(const p of G.players)if(p.flinch>0)p.flinch-=dt;
   for(const s of ["L","R"])if(G.netRipple[s]>0)G.netRipple[s]-=dt*1.6;
+  if(G.challenge){ G.challenge.t-=dt; if(G.challenge.t<=0)G.challenge=null; }
   drawPitch(ctx);
 }
 function steerPlayers(dt){
   const b=G.ball,poss=G.animPoss,dteam=opp(poss),dir=poss==="home"?1:-1;
-  let carrier=null,cd=1e9,def=null,dd=1e9;
-  for(const p of G.players){ if(p.role==="GK")continue; const d=Math.hypot(p.x-b.x,p.y-b.y);
-    if(p.team===poss&&d<cd){cd=d;carrier=p;} if(p.team===dteam&&d<dd){dd=d;def=p;} }
+  const phase=G.phase||"buildup", shooting=(phase==="shot"||phase==="goal"||phase==="save");
+  // carrier = atacante mais perto da bola (só na construção)
+  let carrier=null,cd=1e9;
+  for(const p of G.players){ if(p.team!==poss||p.role==="GK")continue; const d=Math.hypot(p.x-b.x,p.y-b.y); if(d<cd){cd=d;carrier=p;} }
+  G.carrier=carrier;
   for(const p of G.players){
-    let tx=p.ax,ty=p.ay;
-    if(p.role==="GK"){ tx=p.ax; ty=clamp(b.y,GMY1+12,GMY2-12); }
-    else if(p.team===poss){ if(p===carrier){tx=b.x-dir*15;ty=b.y;} else {tx=p.ax+dir*46;ty=p.ay*0.68+b.y*0.32;} }
-    else { if(p===def){tx=b.x+dir*16;ty=b.y;} else {tx=p.ax-dir*14;ty=p.ay*0.7+b.y*0.3;} }
-    const dx=tx-p.x,dy=ty-p.y,d=Math.hypot(dx,dy)||1,spd=p.role==="GK"?130:205;
+    let tx=p.ax,ty=p.ay,spd=200;
+    if(p.role==="GK"){
+      tx=p.team==="home"?GOAL_L+18:GOAL_R-18;
+      ty=clamp(b.y,GMY1+12,GMY2-12);
+      if(shooting&&p.team===dteam){ ty=clamp(b.y,GMY1+4,GMY2-4); spd=300; }   // goleiro mergulha
+    } else if(p.team===poss){
+      if(shooting){
+        if(p===G.shooter&&G.shotSpot){ tx=G.shotSpot.x; ty=G.shotSpot.y; }      // o batedor fica (não entra na rede)
+        else { tx=clamp(b.x-dir*70,BX+40,FW-BX-40); ty=p.ay; }
+      } else if(p===carrier){ tx=b.x-dir*14; ty=b.y; }                          // conduz a bola
+      else { const role=p.role==="FWD"?1:p.role==="MID"?0.5:-0.15;              // companheiros ACOMPANHAM
+        tx=clamp(b.x+dir*(role*70+16),BX+40,FW-BX-40); ty=p.ay; spd=220; }
+    } else { // DEFESA: linha goal-side que RECUA com o avanço; bote só no challenge
+      const ownGoalX=p.team==="home"?GOAL_L:GOAL_R, toGoal=ownGoalX>b.x?1:-1;
+      const chall=G.challenge&&G.challenge.p===p&&G.challenge.t>0;
+      if(chall){ tx=b.x; ty=b.y; spd=255; }                                     // UM zagueiro investe
+      else { tx=clamp(b.x+toGoal*74,BX+26,FW-BX-26); ty=p.ay*0.55+b.y*0.45; }   // os outros seguram a linha
+    }
+    const dx=tx-p.x,dy=ty-p.y,d=Math.hypot(dx,dy)||1;
     if(d>1){p.x+=dx/d*Math.min(spd*dt,d);p.y+=dy/d*Math.min(spd*dt,d);}
     p.x=clamp(p.x,BX,FW-BX);p.y=clamp(p.y,BY+4,FH-BY-4);
   }
