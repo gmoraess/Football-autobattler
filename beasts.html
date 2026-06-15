@@ -102,6 +102,22 @@
   .predict .chip{display:inline-block;margin:3px 4px 0 0;padding:1px 7px;border-radius:7px;background:#0c1322;border:1px solid var(--line);font-size:11px}
   .predict .ok{color:var(--good)} .predict .no{color:var(--bad)}
   .kit{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;margin-right:3px}
+  .furyrow{display:flex;gap:8px;align-items:center;margin:8px 0 0}
+  .furybar{flex:1;height:18px;border-radius:9px;background:#1a1230;border:1px solid var(--line);overflow:hidden;position:relative}
+  #furyfill{height:100%;width:0;background:linear-gradient(90deg,#7a3df5,#f5c451);transition:width .35s}
+  #furytxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;letter-spacing:2px;color:#fff;text-shadow:0 1px 2px #000}
+  #superbtn{padding:8px 12px;font-size:14px;font-weight:800;border-color:#7a3df5;white-space:nowrap}
+  #superbtn.ready{background:linear-gradient(180deg,#9a5bff,#7a3df5);color:#fff;border-color:var(--gold);animation:pulse 1s infinite}
+  #superbtn.armed{background:linear-gradient(180deg,#f5c451,#e0a72f);color:#241a00;border-color:var(--gold)}
+  @keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+  /* mapa */
+  .mapwrap{position:relative;width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:#0c1322;padding:6px}
+  .mapnode{position:absolute;width:38px;height:38px;border-radius:50%;border:2px solid var(--line);background:var(--panel2);
+    display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default;transition:transform .1s}
+  .mapnode.can{cursor:pointer;border-color:var(--gold);box-shadow:0 0 10px rgba(245,196,81,.5)}
+  .mapnode.can:hover{transform:scale(1.12)}
+  .mapnode.done{opacity:.4} .mapnode.cur{border-color:#fff;box-shadow:0 0 12px #fff}
+  .mapnode.boss{width:46px;height:46px;font-size:22px;border-color:var(--bad)}
 </style>
 </head>
 <body>
@@ -129,6 +145,7 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a
 let TURNS=15, STA_MAX=100; const MERCY=5, HAND=5, MAXPLAY=3;
 let IMPACT_DMG=8, FATIGUE=1;
 const BIGSTEP=6, ADV_TH=7, MOMCAP=6;
+const EMPTY=new Set();   // relíquias vazias (partida avulsa)
 
 /* ------------------------------- CARTAS ---------------------------------- */
 const CARDS={
@@ -164,8 +181,8 @@ const DECK_ATK=buildDeck(ATK_DECK), DECK_DEF=buildDeck(DEF_DECK);   // baralhos 
 const shortName=b=>b.name.split(",")[0];
 
 const BEASTS={
-  tatu:{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:5,DEF:5,TEC:4},
-  mino:{key:"mino",name:"Górtax, Minotauro de Ônix",crest:"🐂",color:"#2e3340",ATK:5,DEF:5,TEC:4},
+  tatu:{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:5,DEF:5,TEC:4,super:"casco"},
+  mino:{key:"mino",name:"Górtax, Minotauro de Ônix",crest:"🐂",color:"#2e3340",ATK:5,DEF:5,TEC:4,super:"bicuda"},
 };
 
 /* =================== LÓGICA PURA (determinística) ======================== */
@@ -210,15 +227,27 @@ function evalPlay(st,atkCards,defCards){
   const mom=st.momentum[aSide]||0;
   const inZone=inShootZone(aSide,st.pos);
   if(fin&&!inZone) fin=null;
-  const advanceVal=atkCards.reduce((s,c)=>s+(c.adv||0),0)+A.ATK*0.5+mom;
-  const controlVal=atkCards.reduce((s,c)=>s+(c.ctrl||0),0)+A.TEC*0.6+3+(fin?2:0);
+  const R=st.homeRelics||EMPTY, S=st.super, homeAtk=aSide==="home", homeDef=dSide==="home";
+  let advanceVal=atkCards.reduce((s,c)=>s+(c.adv||0),0)+A.ATK*0.5+mom;
+  let controlVal=atkCards.reduce((s,c)=>s+(c.ctrl||0),0)+A.TEC*0.6+3+(fin?2:0);
   const shotBonus =sup.reduce((s,c)=>s+(c.shot||0),0);
-  const guardVal  =block.reduce((s,c)=>s+(c.guard||0),0)+press.reduce((s,c)=>s+(c.guard||0),0)+D.DEF*0.7;
-  const stealVal  =tackle.reduce((s,c)=>s+(c.steal||0),0)+dImp.reduce((s,c)=>s+(c.steal||0),0)+press.reduce((s,c)=>s+(c.steal||0),0)+D.TEC*0.3;
-  const rawImpToD =aImp.reduce((s,c)=>s+(c.sta||0),0)+((fin&&fin.impact)?IMPACT_DMG:0);
-  const rawImpToA =dImp.reduce((s,c)=>s+(c.sta||0),0);
+  let guardVal  =block.reduce((s,c)=>s+(c.guard||0),0)+press.reduce((s,c)=>s+(c.guard||0),0)+D.DEF*0.7;
+  let stealVal  =tackle.reduce((s,c)=>s+(c.steal||0),0)+dImp.reduce((s,c)=>s+(c.steal||0),0)+press.reduce((s,c)=>s+(c.steal||0),0)+D.TEC*0.3;
+  // RELÍQUIAS (só do jogador/home) + SINERGIAS
+  const impCount=(homeAtk?aImp.length:0)+(homeDef?dImp.length:0);
+  let impBonus=0; if(impCount>0){ if(R.has("garras"))impBonus+=3; if(R.has("corrente"))impBonus+=2*impCount; }
+  let shotPlus=0;
+  if(homeAtk){ if(R.has("vento"))advanceVal+=3; if(R.has("maestro"))controlVal+=3; if(R.has("fogo"))shotPlus+=3; }
+  if(homeDef){ if(R.has("muralha"))guardVal+=4; if(R.has("ladrao"))stealVal+=3; }
+  // SUPER LANCE (Fúria) — efeito único da fera, uma vez
+  if(S){ if(homeAtk){ if(S==="bicuda"){advanceVal+=18;shotPlus+=22;} else if(S==="voo"){controlVal+=20;advanceVal+=12;} else if(S==="casco"){controlVal+=22;} }
+         if(homeDef){ if(S==="casco"){guardVal+=26;stealVal+=12;} else if(S==="voo"){stealVal+=26;} }
+         if(S==="mordida"){impBonus+=26;} }
+  const momShot=(homeAtk&&R.has("embalo"))?mom*2:mom;   // sinergia: embalo conta dobrado no chute
+  const rawImpToD =aImp.reduce((s,c)=>s+(c.sta||0),0)+((fin&&fin.impact)?IMPACT_DMG:0)+(homeAtk?impBonus:0);
+  const rawImpToA =dImp.reduce((s,c)=>s+(c.sta||0),0)+(homeDef?impBonus:0);
   const target=fin?Math.max(0,guardVal-(fin.pierce||0)):0;
-  const shotVal=fin?fin.shot+shotBonus+A.ATK*0.5+mom:0;
+  const shotVal=fin?fin.shot+shotBonus+A.ATK*0.5+momShot+shotPlus:0;
   let outcome,newPos=st.pos,newPoss=aSide,impToD=0,impToA=0,newMom=mom;
   if(stealVal>controlVal+2){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; newMom=0; }
   else if(fin){ outcome= shotVal>=target?"GOAL":"MISS"; impToD=rawImpToD; newPoss=dSide; newPos=kickoffPos(dSide); newMom=0; }
@@ -244,8 +273,10 @@ function resolveContest(st,atkCards,defCards){
 }
 function applyTurn(st,res){
   st.score.home+=res.goalHome; st.score.away+=res.goalAway;
-  st.sta.home=clamp(st.sta.home+res.staHome-FATIGUE,0,STA_MAX);
-  st.sta.away=clamp(st.sta.away+res.staAway-FATIGUE,0,STA_MAX);
+  const mx=st.staMax||{home:STA_MAX,away:STA_MAX};
+  const heal=(res.goalHome&&st.homeRelics&&st.homeRelics.has("chuteira"))?10:0;   // relíquia: gol cura fôlego
+  st.sta.home=clamp(st.sta.home+res.staHome-FATIGUE+heal,0,mx.home);
+  st.sta.away=clamp(st.sta.away+res.staAway-FATIGUE,0,mx.away);
   st.possession=res.possession; st.pos=res.pos; st.turn++;
 }
 function finish(st,w,reason){st.over=true;st.winner=w;st.reason=reason;return{over:true,winner:w,reason};}
@@ -269,7 +300,11 @@ const HOME_COL="#3f86ad", AWAY_COL="#e07a3a";   // uniforme por LADO (casa azul 
 
 function beginMatch(home,away,decks,onEnd){
   const st=freshState({...home},{...away});
-  G={st,ctx:null,canvas:null,busy:false,play:[],hand:[],players:[],
+  const relics=new Set((decks&&decks.relics)||[]);
+  st.homeRelics=relics; st.super=null;
+  st.staMax={home:STA_MAX+(relics.has("coracao")?12:0), away:STA_MAX};
+  st.sta.home=st.staMax.home;
+  G={st,ctx:null,canvas:null,busy:false,play:[],hand:[],players:[],fury:0,superArmed:null,superName:(home.super||null),
      ball:{x:ZX[st.pos],y:FH/2,px:ZX[st.pos],py:FH/2,rot:0,trail:[],fire:0},
      vfx:[],fire:[],shake:0,anim:null,raf:0,animPoss:"home",
      cam:{s:1,x:FW/2,y:FH/2},camT:{s:1,x:FW/2,y:FH/2},slow:1,slowT:1,netRipple:{L:0,R:0},
@@ -312,7 +347,12 @@ function executePlay(){
   const aiPlay=G.enemyPlay||[];
   const atkCards=atk?G.play:aiPlay, defCards=atk?aiPlay:G.play;
   const oldPos=G.st.pos;
+  const usedSuper=!!G.superArmed;
+  G.st.super=G.superArmed||null;
   const res=resolveContest(G.st,atkCards,defCards);
+  G.st.super=null;
+  if(usedSuper){ G.fury=0; G.superArmed=null; G.shake=18; spawnFire(G.ball.x,G.ball.y,24); log("ko",`⚡ SUPER LANCE: ${superLabel(G.superName)}!`); }
+  else G.fury=Math.min(100,G.fury+furyGain(res));
   log("sys",`${G.st.beasts.away.crest} ${shortName(G.st.beasts.away)} joga: ${aiPlay.length?aiPlay.map(c=>c.ic).join(" "):"—"}`);
   runAnim(buildAnim(res,oldPos),()=>{
     const cls=res.type==="GOAL"?"goal":res.type==="CONCEDE"?"miss":(res.type==="STEAL"||res.type==="DEFEND"||res.type==="HELD")?"good":res.type==="ADVANCE"?"adv":(res.type==="MISS"||res.type==="LOSE"||res.type==="PRESSURED")?"miss":"";
@@ -325,6 +365,19 @@ function executePlay(){
     setTimeout(()=>{ if(end.over) showResult(end); else nextTurn(); }, res.type==="GOAL"||res.type==="CONCEDE"?500:400);
   });
 }
+const SUPERS={casco:{nm:"Casco Imortal",ds:"Muralha impenetrável: quase impossível te vencer este turno."},
+  bicuda:{nm:"Bicuda Imortal",ds:"Chute/avanço devastador: quase gol certo."},
+  voo:{nm:"Voo Rasante",ds:"Roubo/controle relâmpago: domina a bola."},
+  mordida:{nm:"Mordida Selvagem",ds:"Drena muito fôlego do rival (💥)."}};
+function superLabel(id){return SUPERS[id]?SUPERS[id].nm:"Super";}
+function armSuper(){
+  if(G.busy||!G.superName)return;
+  if(G.superArmed){ G.superArmed=null; G.st.super=null; }
+  else { if(G.fury<100){toast("Fúria ainda carregando");return;} G.superArmed=G.superName; G.st.super=G.superName; toast("⚡ "+superLabel(G.superName)+" armado!"); }
+  renderHandArea();
+}
+function furyGain(res){ let g={GOAL:26,CONCEDE:6,ADVANCE:14,DEFEND:16,STEAL:18,HELD:12,MISS:8,LOSE:6,STUFF:6,PRESSURED:6}[res.type]||10;
+  if(G.st.homeRelics&&G.st.homeRelics.has("furia"))g*=1.5; return g; }
 function narrate(res){
   const z=ZNAMES[res.pos], hN=shortName(G.st.beasts.home), aN=shortName(G.st.beasts.away);
   switch(res.type){
@@ -590,6 +643,8 @@ function renderMatch(){
       <div class="zonelabel"><span id="zoneTitle">Sua jogada</span><span id="zoneRule" class="muted"></span></div>
       <div class="playzone empty" id="playzone"></div>
       <div id="predict" class="predict"></div>
+      <div class="furyrow"><div class="furybar"><div id="furyfill"></div><span id="furytxt">FÚRIA</span></div>
+        <button class="btn ghost" id="superbtn" title="Super Lance">⚡</button></div>
       <div class="controls"><button class="btn primary full" id="exec">▶ Executar jogada</button>
         <button class="btn ghost" id="clearp">limpar</button></div>
       <div class="zonelabel" style="margin-top:8px"><span>Sua mão</span><span class="muted" id="handHint"></span></div>
@@ -599,7 +654,7 @@ function renderMatch(){
     <button class="btn ghost full" id="restart" style="margin-top:8px">↻ Reiniciar</button>
   </div>`;
   G.canvas=$("#pitch");G.ctx=G.canvas.getContext("2d");
-  $("#exec").onclick=executePlay;
+  $("#exec").onclick=executePlay; $("#superbtn").onclick=armSuper;
   $("#clearp").onclick=()=>{if(G.busy)return;G.play=[];renderHandArea();};
   $("#restart").onclick=()=>{cancelAnimationFrame(G.raf);startGame();};
   renderHud();
@@ -646,7 +701,17 @@ function renderHandArea(){
     if(used)el.style.outline="2px solid var(--gold)";
     hd.appendChild(el);
   });
-  describeIntent(); describePredict();
+  describeIntent(); describePredict(); updateFury();
+}
+function updateFury(){
+  const fb=$("#furyfill"); if(fb)fb.style.width=Math.min(100,G.fury||0)+"%";
+  const ft=$("#furytxt"); if(ft)ft.textContent=(G.fury||0)>=100?"⚡ SUPER PRONTO":"FÚRIA "+Math.floor(G.fury||0)+"%";
+  const sb=$("#superbtn"); if(!sb)return;
+  if(!G.superName){ sb.style.display="none"; return; }
+  const ready=(G.fury||0)>=100, armed=!!G.superArmed;
+  sb.textContent=(armed?"✅ ":"⚡ ")+superLabel(G.superName);
+  sb.className="btn "+(armed?"armed":ready?"ready":"ghost");
+  sb.disabled=!ready&&!armed;
 }
 function describeIntent(){
   const el=$("#intent"); if(!el)return;
@@ -689,10 +754,11 @@ function describePredict(){
 function renderHud(){
   const st=G.st,set=(id,v)=>{const e=$("#"+id);if(e)e.textContent=v;};
   set("scH",st.score.home);set("scA",st.score.away);set("staHn",Math.round(st.sta.home));set("staAn",Math.round(st.sta.away));
-  const sh=$("#staH");if(sh)sh.style.width=(st.sta.home/STA_MAX*100)+"%";
-  const sa=$("#staA");if(sa)sa.style.width=(st.sta.away/STA_MAX*100)+"%";
+  const mx=st.staMax||{home:STA_MAX,away:STA_MAX};
+  const sh=$("#staH");if(sh)sh.style.width=(st.sta.home/mx.home*100)+"%";
+  const sa=$("#staA");if(sa)sa.style.width=(st.sta.away/mx.away*100)+"%";
   set("turnLbl",st.suddenDeath?"MORTE SÚBITA":`Turno ${Math.min(st.turn,TURNS)} / ${TURNS}`);
-  renderZonebar();
+  renderZonebar(); updateFury();
 }
 function banner(cb){
   const atk=G.st.possession==="home";
@@ -728,62 +794,130 @@ const BASE_ATK=["passe","passe","drible","drible","meialua","visao","finaliza","
 const BASE_DEF=["defesa","defesa","bloqueio","desarme","desarme","marcacao","carrinho"];
 const JAC_ATK =["passe","passe","drible","drible","ombro","visao","finaliza","finaliza","pancada","pancada"];
 const ROSTER={
-  tatu  :{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:4,DEF:6,TEC:5,
-    style:"Equilibrado / Defensivo",desc:"Casca dura: segura o jogo e pune nos detalhes.",
+  tatu  :{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:4,DEF:6,TEC:5,super:"casco",
+    style:"Muralha / Defensivo",desc:"Casca dura: sofre pouco. Super: Casco Imortal.",
     atk:BASE_ATK,def:BASE_DEF},
-  mino  :{key:"mino",name:"Górtax, o Minotauro de Ônix",crest:"🐂",color:"#b04646",ATK:6,DEF:4,TEC:5,
-    style:"Ofensivo / Força",desc:"Vai pra cima: chute forte e pressão constante.",
+  mino  :{key:"mino",name:"Górtax, o Minotauro de Ônix",crest:"🐂",color:"#b04646",ATK:6,DEF:4,TEC:5,super:"bicuda",
+    style:"Artilheiro / Força",desc:"Vai pra cima. Super: Bicuda Imortal.",
     atk:BASE_ATK,def:BASE_DEF},
-  falcao:{key:"falcao",name:"Aurélio, o Falcão Real",crest:"🦅",color:"#3f86ad",ATK:5,DEF:4,TEC:6,
-    style:"Controle / Velocidade",desc:"Posse e precisão: tabela e não perde a bola.",
+  falcao:{key:"falcao",name:"Aurélio, o Falcão Real",crest:"🦅",color:"#3f86ad",ATK:5,DEF:4,TEC:6,super:"voo",
+    style:"Maestro / Controle",desc:"Posse e precisão. Super: Voo Rasante.",
     atk:BASE_ATK,def:BASE_DEF},
-  jacare:{key:"jacare",name:"Mandíbula, o Jacaré-Rei",crest:"🐊",color:"#3f7a52",ATK:5,DEF:5,TEC:5,
-    style:"Impacto / Desgaste",desc:"Mordida: baralho voltado ao fôlego (💥).",atk:JAC_ATK,def:BASE_DEF},
+  jacare:{key:"jacare",name:"Mandíbula, o Jacaré-Rei",crest:"🐊",color:"#3f7a52",ATK:5,DEF:5,TEC:5,super:"mordida",
+    style:"Impacto / Desgaste",desc:"Vence pelo fôlego (💥). Super: Mordida Selvagem.",atk:JAC_ATK,def:BASE_DEF},
 };
 const BOSS={key:"quetzal",name:"Quetzal, a Serpente Imortal",crest:"🐉",color:"#caa033",ATK:6,DEF:5,TEC:5,
   style:"Lendária",desc:"A campeã imortal que reina há mil anos.",
   atk:["passe","drible","caneta","visao","meialua","finaliza","voleio","colocado","bicuda","pancada"],
   def:["defesa","muralha","bloqueio","desarme","botinha","marcacao","carrinho","solada"]};
-const STAGES=[
-  {key:"g1",name:"Fase de Grupos · Jogo 1",ic:"🟢",tier:0,reward:5},
-  {key:"g2",name:"Fase de Grupos · Jogo 2",ic:"🟢",tier:0,reward:5},
-  {key:"g3",name:"Fase de Grupos · Jogo 3",ic:"🟢",tier:1,reward:6},
-  {key:"r16",name:"Oitavas de Final",ic:"⚔️",tier:1,reward:7,ko:true},
-  {key:"qf",name:"Quartas de Final",ic:"⚔️",tier:2,reward:8,ko:true},
-  {key:"sf",name:"Semifinal",ic:"🔥",tier:2,reward:10,ko:true},
-  {key:"final",name:"A FINAL — Serpente Imortal",ic:"👑",tier:3,reward:0,ko:true,boss:true},
+/* ---- 3 ATOS · mapa randômico estilo roguelike ---- */
+const ACTS=3, ACT_NAME=["Ato I — Despertar","Ato II — Ascensão","Ato III — A Imortal"];
+const NODE_IC={match:"⚽",elite:"💀",event:"❓",treasure:"🎁",shop:"🛒",boss:"👑"};
+const NODE_NM={match:"Partida",elite:"Elite",event:"Evento",treasure:"Baú (Relíquia)",shop:"Mercado",boss:"FINAL DO ATO"};
+/* ---- relíquias (modificadores passivos da corrida; sinergias inclusas) ---- */
+const RELICS={
+  fogo    :{ic:"🔥",nm:"Bola de Fogo",ds:"+3 em todo chute seu."},
+  maestro :{ic:"🎼",nm:"Batuta do Maestro",ds:"+3 de controle (resiste mais a roubo)."},
+  vento   :{ic:"🌀",nm:"Botas do Vento",ds:"+3 de avanço."},
+  muralha :{ic:"🏰",nm:"Muralha Rúnica",ds:"+4 de guarda na defesa."},
+  ladrao  :{ic:"🧤",nm:"Luva do Ladrão",ds:"+3 de desarme na defesa."},
+  garras  :{ic:"⚔️",nm:"Garras de Aço",ds:"Seus impactos causam +3 de fôlego."},
+  coracao :{ic:"❤️",nm:"Coração de Pedra",ds:"Começa cada jogo com +12 de fôlego."},
+  chuteira:{ic:"🥇",nm:"Chuteira de Ouro",ds:"Cada gol seu cura 10 de fôlego."},
+  furia   :{ic:"🥁",nm:"Tambor de Guerra",ds:"A Fúria carrega 50% mais rápido."},
+  embalo  :{ic:"♾️",nm:"Pacto do Embalo",ds:"SINERGIA: o embalo conta DOBRADO no chute."},
+  corrente:{ic:"⛓️",nm:"Corrente de Impacto",ds:"SINERGIA: cada carta de impacto no turno dá +2 de fôlego."},
+};
+const RELIC_IDS=Object.keys(RELICS);
+function randomRelics(n,exclude){ return shuffle(RELIC_IDS.filter(id=>!(exclude||[]).includes(id))).slice(0,n); }
+function grantRelic(){ const avail=RELIC_IDS.filter(id=>!RUN.relics.includes(id));
+  if(!avail.length){ RUN.gold+=6; toast("Relíquias no máximo · +6🪙"); return; }
+  const id=pick(avail); RUN.relics.push(id); toast("Relíquia: "+RELICS[id].nm); }
+/* ---- eventos ---- */
+const EVENTS=[
+  {t:"🔮 O Oráculo das Brumas",d:"A névoa antiga sussurra um pacto: poder por ouro.",
+   opts:[{l:"Aceitar o pacto — ganhe uma relíquia (–4🪙)",need:4,fx:()=>{RUN.gold-=4;grantRelic();}},
+         {l:"Recusar e seguir (+3🪙)",fx:()=>{RUN.gold+=3;}}]},
+  {t:"🏺 Tenda do Mercador",d:"Um mascate oferece uma carta enrolada num pano.",
+   opts:[{l:"Comprar carta surpresa (–5🪙)",need:5,fx:()=>{RUN.gold-=5;const ids=Object.keys(CARDS).filter(id=>CARDS[id].mode);const id=pick(ids);(CARDS[id].mode==='atk'?RUN.atk:RUN.def).push(id);toast("Ganhou "+CARDS[id].nm);}},
+         {l:"Seguir em frente (+2🪙)",fx:()=>{RUN.gold+=2;}}]},
+  {t:"💎 Altar Esquecido",d:"O altar pulsa. Tocar pode ser dádiva… ou cobrança.",
+   opts:[{l:"Tocar o altar — relíquia (–3🪙)",need:3,fx:()=>{RUN.gold-=3;grantRelic();}},
+         {l:"Apenas rezar (+6🪙)",fx:()=>{RUN.gold+=6;}}]},
+  {t:"⚔️ Aposta do Andarilho",d:"Um andarilho propõe um jogo de azar relâmpago.",
+   opts:[{l:"Apostar alto (50%: +12🪙 / 0)",fx:()=>{ if(Math.random()<0.5){RUN.gold+=12;toast("Ganhou a aposta! +12🪙");} else toast("Perdeu a aposta..."); }},
+         {l:"Jogar seguro (+4🪙)",fx:()=>{RUN.gold+=4;}}]},
 ];
 const SHOP_POOL=[["passe",2],["drible",3],["lancamento",3],["visao",4],["finaliza",4],["colocado",5],["bicuda",6],
   ["pancada",3],["meialua",4],["caneta",6],["cavadinha",5],["voleio",7],["ombro",5],
   ["defesa",4],["bloqueio",3],["desarme",4],["marcacao",3],["carrinho",5],["muralha",7],["botinha",6],["solada",6]];
 
 let RUN=null;
-function newRun(key){ const b=ROSTER[key]; RUN={beast:b,atk:b.atk.slice(),def:b.def.slice(),gold:6,stage:0,history:[],opp:null,shop:null}; }
-function makeOpponent(stage){
-  let b = stage.boss?BOSS:ROSTER[pick(Object.keys(ROSTER).filter(k=>k!==RUN.beast.key))];
-  const tierMul=[0.60,0.72,0.82,0.90], mul=tierMul[stage.tier];
-  const beast={...b,ATK:Math.max(3,Math.round(b.ATK*mul)),DEF:Math.max(3,Math.round(b.DEF*mul)),TEC:Math.max(3,Math.round(b.TEC*mul))};
-  const atk=b.atk.slice(), def=b.def.slice();
-  const premA=["bicuda","voleio","caneta","visao"], premD=["muralha","botinha","solada"];
-  const prem=[0,0,0,1][stage.tier];
-  for(let i=0;i<prem;i++){ atk.push(pick(premA)); def.push(pick(premD)); }
-  return {beast,atk,def};
-}
+function newRun(key){ const b=ROSTER[key];
+  RUN={beast:b,atk:b.atk.slice(),def:b.def.slice(),relics:[],gold:7,act:0,lives:1,map:null,node:null,curNode:null,shop:null,history:[],_relicChoices:null,_relicThen:null}; }
 function deckBreak(ids){const c={};ids.forEach(id=>{const t=CARDS[id].type;c[t]=(c[t]||0)+1;});
   return Object.entries(c).map(([t,n])=>`${typeLabel(t)}×${n}`).join(" · ");}
 
-function onCampaignEnd(end){
-  const win=end.winner==="home", stage=STAGES[RUN.stage];
-  RUN.history.push(win);
-  if(win) RUN.gold+=stage.reward;
-  if(win&&stage.boss){ screenChampion(); return; }
-  if(!win&&stage.ko){ screenStageResult(end,"out"); return; }   // mata-mata: derrota elimina
-  RUN.stage++; RUN.opp=null; RUN.shop=null;                       // grupos: avança mesmo perdendo
-  screenStageResult(end, win?"win":"groupLoss");
+// ----- MAPA randômico (3 trilhas, bifurcações sobe/desce, gerado toda vez) -----
+function generateMap(act){
+  const COLS=4, ROWS=3, nodes={}, edges={};
+  const key=(c,r)=>c+"_"+r;
+  const ensure=(c,r)=>{const k=key(c,r); if(!nodes[k])nodes[k]={c,r,id:k,type:null,done:false}; return k;};
+  const addEdge=(c,r,nr)=>{const k=key(c,r),nk=key(c+1,nr); edges[k]=edges[k]||[]; if(!edges[k].includes(nk))edges[k].push(nk);};
+  for(let p=0;p<6;p++){ let r=ri(0,ROWS-1); ensure(0,r);
+    for(let c=0;c<COLS-1;c++){ const nr=clamp(r+pick([-1,0,1]),0,ROWS-1); ensure(c+1,nr); addEdge(c,r,nr); r=nr; } }
+  nodes["boss"]={c:COLS,r:1,id:"boss",type:"boss",done:false};
+  const byCol={}; for(const k in nodes){ const n=nodes[k]; if(n.type==="boss")continue; (byCol[n.c]=byCol[n.c]||[]).push(k); }
+  for(const k in nodes){ if(nodes[k].c===COLS-1) edges[k]=["boss"]; }
+  byCol[0].forEach(k=>nodes[k].type="match");
+  for(let c=1;c<COLS;c++){ if(!byCol[c])continue; for(const k of byCol[c]){
+    const x=Math.random(); nodes[k].type = x<0.42?"match" : x<0.70?"event" : (x<0.84&&c>=2)?"elite" : x<0.93?"shop":"match"; } }
+  const midCol=Math.floor(COLS/2); if(byCol[midCol]) nodes[pick(byCol[midCol])].type="treasure";   // baú garantido no meio
+  const all=Object.values(nodes);
+  if(!all.some(n=>n.type==="shop")&&byCol[COLS-1]) nodes[pick(byCol[COLS-1])].type="shop";
+  if(!all.some(n=>n.type==="event")&&byCol[1]) nodes[pick(byCol[1])].type="event";
+  return {nodes,edges,COLS,ROWS,boss:"boss",startKeys:byCol[0]};
 }
-function startStageMatch(){
-  if(!RUN.opp) RUN.opp=makeOpponent(STAGES[RUN.stage]);
-  beginMatch(RUN.beast,RUN.opp.beast,{pAtk:RUN.atk,pDef:RUN.def,oAtk:RUN.opp.atk,oDef:RUN.opp.def},onCampaignEnd);
+function startAct(){ RUN.map=generateMap(RUN.act); RUN.node=null; RUN.shop=null; screenMap(); }
+function reachable(){ return RUN.node==null ? RUN.map.startKeys : (RUN.map.edges[RUN.node]||[]); }
+
+function makeOpponent(node){
+  const act=RUN.act, isBoss=node.type==="boss", isElite=node.type==="elite";
+  let b = (isBoss&&act===ACTS-1)?BOSS : ROSTER[pick(Object.keys(ROSTER).filter(k=>k!==RUN.beast.key))];
+  const actMul=[0.46,0.60,0.74][act];
+  const mul=actMul+(isElite?0.10:0)+(isBoss?0.14:0);
+  const beast={...b,ATK:Math.max(3,Math.round(b.ATK*mul)),DEF:Math.max(3,Math.round(b.DEF*mul)),TEC:Math.max(3,Math.round(b.TEC*mul))};
+  const atk=b.atk.slice(), def=b.def.slice();
+  const premA=["bicuda","voleio","caneta","visao"], premD=["muralha","botinha","solada"];
+  const prem=(isBoss?2:isElite?1:0)+(act>=2?1:0);
+  for(let i=0;i<prem;i++){ atk.push(pick(premA)); def.push(pick(premD)); }
+  return {beast,atk,def};
+}
+function completeNode(){ const n=RUN.curNode; if(n){n.done=true;RUN.node=n.id;RUN.curNode=null;} RUN._relicChoices=null; screenMap(); }
+function enterNode(key){ const node=RUN.map.nodes[key]; if(node.done&&node.type!=="boss")return; RUN.curNode=node;
+  if(node.type==="match"||node.type==="elite"||node.type==="boss") startNodeMatch(node);
+  else if(node.type==="event") screenEvent();
+  else if(node.type==="treasure") screenRelicReward(completeNode);
+  else if(node.type==="shop"){ RUN.shop=null; screenShop(); }
+}
+function startNodeMatch(node){ const o=makeOpponent(node); RUN.opp=o;
+  beginMatch(RUN.beast,o.beast,{pAtk:RUN.atk,pDef:RUN.def,oAtk:o.atk,oDef:o.def,relics:RUN.relics},onNodeMatchEnd); }
+function onNodeMatchEnd(end){
+  cancelAnimationFrame(G.raf);
+  const win=end.winner==="home", node=RUN.curNode;
+  RUN.history.push(win);
+  if(!win){
+    if(node.type!=="boss" && RUN.lives>0){ RUN.lives--; node.done=true; RUN.node=node.id; RUN.curNode=null; screenStageResult(end,"saved"); return; }
+    screenStageResult(end,"out"); return;
+  }
+  if(node.type==="boss"){ RUN.gold+=15;
+    if(RUN.act>=ACTS-1){ screenChampion(); return; }
+    RUN.act++; RUN.node=null; screenStageResult(end,"act"); return;
+  }
+  RUN.gold += node.type==="elite"?10:6;
+  node.done=true; RUN.node=node.id; RUN.curNode=null;
+  if(node.type==="elite"){ screenRelicReward(screenMap); return; }   // elite dá relíquia
+  screenStageResult(end,"win");
 }
 
 /* --------------------------------- TELAS --------------------------------- */
@@ -792,18 +926,18 @@ function screenTitle(){
     <div style="font-size:54px">🐉⚽</div><h1>WORLD CUP BEASTS</h1>
     <p style="max-width:470px;margin:6px auto">Num mundo onde tudo se decide num <b>embate de futebol</b>, as Feras das Nações
       disputam a <b class="gold">Copa dos Mil Anos</b>. Vença o chaveamento e enfrente a <b>Serpente Imortal</b> na final.</p>
-    <div class="card-ui" style="max-width:450px;margin:14px auto;text-align:left">
-      <h3>A campanha</h3>
-      <p>• Escolha sua <b>fera</b> (cada uma com baralho e estilo próprios).</p>
-      <p>• Suba na Copa: <b>Grupos → Oitavas → Quartas → Semi → Final</b>. Perdeu, a corrida acaba.</p>
-      <p>• Entre os jogos, gaste 🪙 na <b>loja</b> e <b>monte seu baralho</b> (deck-building).</p>
-      <p>• Na partida: avance por passes e <b>finalize no Ataque</b>; <b>fôlego</b> é vida. Tudo é valor vs valor — <b>sem sorte</b> na resolução.</p>
+    <div class="card-ui" style="max-width:460px;margin:14px auto;text-align:left">
+      <h3>A campanha — 3 atos, mapa aleatório</h3>
+      <p>• Escolha sua <b>fera</b> (estilo + <b>Super Lance</b> próprio).</p>
+      <p>• Cada ato é um <b>mapa randômico</b> com 3 trilhas: ⚽ partidas · 💀 elites · ❓ eventos · 🎁 relíquias · 🛒 loja — até a 👑 <b>final do ato</b>.</p>
+      <p>• <b>Relíquias</b> (passivas) + <b>deck-building</b> na loja montam sua build. A <b>Fúria</b> carrega e libera o Super.</p>
+      <p>• Veja a <b>intenção do rival</b> e o <b>resultado previsto</b> da sua jogada — sem sorte na resolução. Perdeu uma eliminatória sem <b>vida extra ❤️</b>? Fim da corrida.</p>
     </div>
     <div class="col" style="max-width:300px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
       <button class="btn primary full" id="camp">🏆 Iniciar Campanha</button>
       <button class="btn ghost full" id="exib">⚡ Partida Avulsa (treino)</button>
     </div>
-    <p class="muted" style="font-size:11px;margin-top:14px">Parte 2 — Copa + deck-building</p>
+    <p class="muted" style="font-size:11px;margin-top:14px">Parte 2 — mapa roguelike · relíquias · super lance</p>
   </div>`;
   $("#camp").onclick=screenSelect; $("#exib").onclick=startGame;
 }
@@ -823,45 +957,68 @@ function screenSelect(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${cards}</div>
     <button class="btn ghost full" id="back" style="margin-top:12px">← Voltar</button>
   </div>`;
-  app.querySelectorAll(".beastpick").forEach(el=>el.onclick=()=>{ newRun(el.dataset.k); screenHub(); });
+  app.querySelectorAll(".beastpick").forEach(el=>el.onclick=()=>{ newRun(el.dataset.k); startAct(); });
   $("#back").onclick=screenTitle;
 }
-function bracketHTML(){
-  return `<div style="display:flex;flex-direction:column;gap:5px">`+STAGES.map((s,i)=>{
-    const stt=i<RUN.stage?"done":i===RUN.stage?"cur":"lock";
-    const mark=i<RUN.stage?'<span class="good">✔</span>':i===RUN.stage?'<span class="gold">▶</span>':'<span class="muted">🔒</span>';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;
-      background:${i===RUN.stage?'var(--panel2)':'var(--panel)'};opacity:${stt==='lock'?.5:1}">
-      <span style="width:22px;text-align:center">${s.ic}</span><span style="font-weight:700;font-size:13px;flex:1">${s.name}</span>${mark}</div>`;
-  }).join("")+`</div>`;
-}
-function screenHub(){
-  if(!RUN.opp) RUN.opp=makeOpponent(STAGES[RUN.stage]);
-  const st=STAGES[RUN.stage], o=RUN.opp.beast;
+function screenMap(){
+  const m=RUN.map, reach=new Set(reachable());
+  const nx=c=>18+c*94, ny=r=>26+r*74, Wm=nx(m.COLS)+52, Hm=ny(m.ROWS-1)+60;
+  let lines="";
+  for(const k in m.edges){ const a=m.nodes[k]; for(const nk of m.edges[k]){ const b=m.nodes[nk];
+    const lit=(RUN.node===k)&&reach.has(nk);
+    lines+=`<line x1="${nx(a.c)+19}" y1="${ny(a.r)+19}" x2="${nx(b.c)+19}" y2="${ny(b.r)+19}" stroke="${lit?'rgba(245,196,81,.6)':'rgba(255,255,255,.13)'}" stroke-width="${lit?3:2}"/>`; } }
+  let nodesHtml="";
+  for(const k in m.nodes){ const n=m.nodes[k]; const can=reach.has(k)&&!n.done;
+    nodesHtml+=`<div class="mapnode ${n.type==='boss'?'boss':''} ${can?'can':''} ${n.done?'done':''} ${RUN.node===k?'cur':''}" data-k="${k}" style="left:${nx(n.c)}px;top:${ny(n.r)}px" title="${NODE_NM[n.type]}">${NODE_IC[n.type]}</div>`; }
+  const relics=RUN.relics.map(id=>`<span title="${RELICS[id].nm}: ${RELICS[id].ds}" style="font-size:18px;margin:0 1px">${RELICS[id].ic}</span>`).join("")||'<span class="muted">nenhuma</span>';
   app.innerHTML=`<div class="screen">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-weight:800">${RUN.beast.crest} ${shortName(RUN.beast)}</div>
-      <div class="gold" style="font-weight:800">🪙 ${RUN.gold}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-weight:800"><span class="kit" style="background:${HOME_COL}"></span>${RUN.beast.crest} ${shortName(RUN.beast)}</div>
+      <div style="font-weight:800">${"❤️".repeat(RUN.lives)||"💔"} <span class="gold">🪙 ${RUN.gold}</span></div></div>
+    <h2 style="margin-bottom:2px">${ACT_NAME[RUN.act]}</h2>
+    <p class="muted" style="font-size:12px;margin:0 0 8px">${NODE_IC.match} partida · ${NODE_IC.elite} elite · ${NODE_IC.event} evento · ${NODE_IC.treasure} relíquia · ${NODE_IC.shop} loja · ${NODE_IC.boss} final. ${RUN.node==null?"Escolha por onde começar (esquerda).":"Toque num nó conectado (brilhando)."}</p>
+    <div class="mapwrap" style="height:${Hm}px"><svg width="${Wm}" height="${Hm}" style="position:absolute;left:0;top:0">${lines}</svg>
+      <div style="position:relative;width:${Wm}px;height:${Hm}px">${nodesHtml}</div></div>
+    <div class="card-ui" style="margin-top:8px;font-size:12px">
+      <div><b>Relíquias:</b> ${relics}</div>
+      <div style="margin-top:4px"><b>Baralho:</b> Ataque ${RUN.atk.length} · Defesa ${RUN.def.length} <button class="btn ghost" id="viewdeck" style="padding:3px 8px;font-size:11px;margin-left:6px">ver</button></div>
     </div>
-    <h2>Caminho da Copa</h2>
-    ${bracketHTML()}
-    <div class="card-ui" style="margin-top:12px">
-      <div style="font-size:12px;color:var(--muted)">Próximo confronto · ${st.name}</div>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
-        <div style="font-size:30px">${o.crest}</div>
-        <div><div style="font-weight:800">${shortName(o)}</div>
-          <div style="font-size:12px;font-weight:700">🗡️${o.ATK} · 🛡️${o.DEF} · 🎯${o.TEC} <span class="pill">${o.style}</span></div></div>
-      </div>
-    </div>
-    <div class="card-ui" style="margin-top:10px">
-      <div style="font-size:12px;color:var(--muted)">Seu baralho</div>
-      <div style="font-size:12px;margin-top:3px"><b>Ataque</b> (${RUN.atk.length}): ${deckBreak(RUN.atk)}</div>
-      <div style="font-size:12px;margin-top:3px"><b>Defesa</b> (${RUN.def.length}): ${deckBreak(RUN.def)}</div>
-    </div>
-    <div class="controls"><button class="btn full" id="shop">🛒 Loja & Baralho</button>
-      <button class="btn primary full" id="go">⚽ Entrar em campo</button></div>
-  </div>`;
-  $("#shop").onclick=screenShop; $("#go").onclick=startStageMatch;
+    <button class="btn ghost full" id="quit" style="margin-top:8px">↩ Abandonar corrida</button></div>`;
+  app.querySelectorAll(".mapnode.can").forEach(el=>el.onclick=()=>enterNode(el.dataset.k));
+  $("#viewdeck").onclick=screenDeckView; $("#quit").onclick=screenTitle;
+}
+function chipHTML(txt){return `<span style="display:inline-block;margin:2px 3px 0 0;padding:2px 7px;border-radius:7px;background:#0c1322;border:1px solid var(--line);font-size:11px">${txt}</span>`;}
+function screenDeckView(){
+  const list=ids=>ids.map(id=>chipHTML(CARDS[id].ic+" "+CARDS[id].nm)).join("");
+  app.innerHTML=`<div class="screen"><h2>Seu baralho</h2>
+    <div class="card-ui"><b>Ataque</b> (${RUN.atk.length}) · ${deckBreak(RUN.atk)}<div style="margin-top:6px">${list(RUN.atk)}</div></div>
+    <div class="card-ui" style="margin-top:8px"><b>Defesa</b> (${RUN.def.length}) · ${deckBreak(RUN.def)}<div style="margin-top:6px">${list(RUN.def)}</div></div>
+    <div class="card-ui" style="margin-top:8px"><b>Relíquias</b><div style="margin-top:6px">${RUN.relics.map(id=>chipHTML(RELICS[id].ic+" "+RELICS[id].nm+" — "+RELICS[id].ds)).join("")||"—"}</div></div>
+    <button class="btn primary full" id="back" style="margin-top:10px">← Voltar ao mapa</button></div>`;
+  $("#back").onclick=screenMap;
+}
+function screenRelicReward(then){
+  RUN._relicThen=then||completeNode;
+  if(!RUN._relicChoices) RUN._relicChoices=randomRelics(3,RUN.relics);
+  const go=()=>{const f=RUN._relicThen;RUN._relicThen=null;RUN._relicChoices=null;f();};
+  if(!RUN._relicChoices.length){ RUN.gold+=6; toast("Sem relíquias novas · +6🪙"); go(); return; }
+  const cards=RUN._relicChoices.map(id=>`<div class="card-ui relicpick" data-id="${id}" style="cursor:pointer;text-align:center;border-color:var(--gold)">
+    <div style="font-size:34px">${RELICS[id].ic}</div><div style="font-weight:800;font-size:13px">${RELICS[id].nm}</div>
+    <div class="muted" style="font-size:11px;margin-top:4px">${RELICS[id].ds}</div></div>`).join("");
+  app.innerHTML=`<div class="screen center"><h2>🎁 Baú de Relíquia</h2>
+    <p class="muted" style="font-size:12px">Escolha 1 — efeito passivo pela corrida inteira.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">${cards}</div>
+    <button class="btn ghost full" id="skip" style="margin-top:10px">Pular (+4🪙)</button></div>`;
+  app.querySelectorAll(".relicpick").forEach(el=>el.onclick=()=>{ RUN.relics.push(el.dataset.id); toast("Relíquia: "+RELICS[el.dataset.id].nm); go(); });
+  $("#skip").onclick=()=>{ RUN.gold+=4; go(); };
+}
+function screenEvent(){
+  if(!RUN._event) RUN._event=pick(EVENTS);
+  const ev=RUN._event;
+  const opts=ev.opts.map((o,i)=>{ const can=!o.need||RUN.gold>=o.need;
+    return `<button class="btn full" data-opt="${i}" ${can?'':'disabled'} style="margin-top:8px;white-space:normal;text-align:left;height:auto;padding:10px 14px">${o.l}</button>`; }).join("");
+  app.innerHTML=`<div class="screen"><h2>${ev.t}</h2><div class="card-ui"><p style="color:var(--txt)">${ev.d}</p></div>${opts}</div>`;
+  app.querySelectorAll("[data-opt]").forEach(b=>b.onclick=()=>{ const o=ev.opts[+b.dataset.opt]; if(o.need&&RUN.gold<o.need)return; o.fx(); RUN._event=null; completeNode(); });
 }
 function screenShop(){
   if(!RUN.shop){ const pool=shuffle(SHOP_POOL.slice()).slice(0,4); RUN.shop=pool.map(([id,c])=>({id,c,sold:false})); }
@@ -894,7 +1051,7 @@ function screenShop(){
     toast(CARDS[it.id].nm+" comprada!"); screenShop();
   });
   $("#rem").onclick=()=>{ if(RUN.gold<3){toast("Ouro insuficiente");return;} screenRemove(); };
-  $("#back").onclick=screenHub;
+  $("#back").onclick=completeNode;
 }
 function screenRemove(){
   const mk=(ids,which)=>ids.map((id,i)=>{const c=CARDS[id];
@@ -915,25 +1072,26 @@ function screenRemove(){
   });
   $("#back").onclick=screenShop;
 }
-function screenStageResult(end,mode){   // mode: "win" | "groupLoss" | "out"
-  const playedStage=STAGES[RUN.history.length-1] || STAGES[RUN.stage];
+function screenStageResult(end,mode){   // mode: "win" | "act" | "out" | "saved"
   const reason={KO:"por nocaute de fôlego 💀",TIME:"no placar",GOLDEN:"com gol de ouro ✨",GOLEADA:"por goleada 🔥"}[end.reason];
-  const out=mode==="out", win=mode==="win";
-  const icon=win?"✅":out?"💀":"😣";
-  const title=win?"Vitória!":out?"Eliminado":"Derrota — mas você avança";
+  const out=mode==="out", act=mode==="act", saved=mode==="saved";
+  const icon=out?"💀":act?"👑":saved?"🩹":"✅";
+  const title=out?"Eliminado":act?"ATO VENCIDO!":saved?"Repescagem!":"Vitória!";
   const sub=out
-    ? `<p class="muted">A corrida termina nas eliminatórias. Caminho: ${RUN.history.map(w=>w?"🟢":"🔴").join(" ")}</p>`
-    : win
-      ? `<p class="gold">+🪙 ${playedStage.reward} de ouro</p>`
-      : `<p class="muted">Na fase de grupos a derrota não elimina — siga para o próximo jogo e reforce o elenco.</p>`;
+    ? `<p class="muted">A corrida termina aqui. Caminho: ${RUN.history.map(w=>w?"🟢":"🔴").join(" ")}</p>`
+    : saved
+      ? `<p class="gold">Você caiu, mas uma <b>vida extra</b> te salvou e te leva adiante! (vidas restantes: ${RUN.lives})</p>`
+    : act
+      ? `<p class="gold">Você superou a final do ${ACT_NAME[RUN.act-1].split("—")[0].trim()}! +🪙 ouro. Um novo mapa o aguarda.</p>`
+      : `<p class="gold">+🪙 ouro · siga pelo mapa.</p>`;
   app.innerHTML=`<div class="screen center" style="padding-top:6vh">
     <div style="font-size:56px">${icon}</div>
-    <h1 class="${win?'good':out?'bad':'gold'}">${title}</h1>
+    <h1 class="${out?'bad':saved?'good':'gold'}">${title}</h1>
     <p>${G.st.score.home} <span class="muted">x</span> ${G.st.score.away} · ${reason}</p>
     ${sub}
-    <button class="btn primary full" id="next" style="margin-top:16px;max-width:300px">${out?"↻ Nova campanha":"Continuar →"}</button>
+    <button class="btn primary full" id="next" style="margin-top:16px;max-width:300px">${out?"↻ Nova campanha":act?"➡ Próximo Ato":"Continuar →"}</button>
   </div>`;
-  $("#next").onclick=out?screenTitle:screenHub;
+  $("#next").onclick=out?screenTitle:act?startAct:screenMap;
 }
 function screenChampion(){
   app.innerHTML=`<div class="screen center" style="padding-top:7vh">
@@ -946,8 +1104,9 @@ function screenChampion(){
 }
 
 if(typeof module!=="undefined"&&module.exports){
-  module.exports={freshState,resolveContest,aiPick,applyTurn,checkEnd,drawHand,inShootZone,CARDS,BEASTS,
-    ROSTER,BOSS,STAGES,newRun,makeOpponent,getRun:()=>RUN,
+  module.exports={freshState,resolveContest,evalPlay,aiPick,applyTurn,checkEnd,drawHand,inShootZone,CARDS,BEASTS,STA_MAX,
+    ROSTER,BOSS,RELICS,RELIC_IDS,EVENTS,ACTS,newRun,makeOpponent,generateMap,getRun:()=>RUN,setRun:r=>RUN=r,
+    beginNode:n=>n,
     set:o=>{if(o.IMPACT_DMG!=null){IMPACT_DMG=o.IMPACT_DMG;CARDS.pancada.sta=o.IMPACT_DMG;CARDS.carrinho.sta=o.IMPACT_DMG;}
       if(o.FATIGUE!=null)FATIGUE=o.FATIGUE; if(o.TURNS!=null)TURNS=o.TURNS;}};
 }

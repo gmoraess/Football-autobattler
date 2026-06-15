@@ -122,6 +122,16 @@ Só um time tem a bola por vez, então cada turno é uma **disputa de posse**:
 
 **Pendências de polimento (futuro):** sprites únicos por fera (hoje é disco+emoji), áudio, mais cartas/relíquias, e a arquitetura plugável p/ os 3 resolvedores (carta já é o oficial; dado/slot ficam como extensão).
 
+## 5b. PARTE 2+ — Mapa roguelike (3 atos) + Relíquias + Super + Intenção ✅ ENTREGUE
+Após pesquisa do gênero (Slay the Spire, Monster Train, Balatro / futebol arcade Captain Tsubasa, Inazuma), adicionado:
+1. ✅ **Clareza:** cores fixas por LADO (casa azul · visitante laranja, fera = crista); **intenção do inimigo** telegrafada (jogada travada no início do turno); **medidor de resultado** exato ao montar a jogada (resolução determinística → estilo Into the Breach).
+2. ✅ **Mapa randômico de 3 ATOS** (estilo StS): gerado toda vez, **3 trilhas** com bifurcações sobe/desce; nós de ⚽ partida · 💀 elite · ❓ evento · 🎁 baú de relíquia (garantido no meio) · 🛒 loja · 👑 final do ato. Caminho curto (~3 partidas/ato).
+3. ✅ **Relíquias** (11, com 2 de **sinergia**) — modificadores passivos da corrida (baú, elite, evento). Tela de escolha (1 de 3).
+4. ✅ **Super Lance por fera** (Fúria que carrega): Casco Imortal (tatu) · Bicuda Imortal (mino) · Voo Rasante (falcão) · Mordida Selvagem (jacaré). Barra + botão; o medidor mostra o efeito.
+5. ✅ **Eventos** (escolhas narrativas com risco/recompensa).
+6. ✅ **Vida extra (❤️ repescagem):** 1 por corrida — salva 1 derrota fora do mata-mata; o que torna a gauntlet de 3 atos justa.
+7. ✅ **Balanceamento (sim. headless):** campeão **21/21/21/22%** por fera (parelho); deck comum mantém paridade; relíquias/super buffam o jogador, vida extra equilibra a duração. **0 exceções** em ~60k campanhas + smoke de todas as telas/fluxo.
+
 ---
 
 ## 6. Perguntas em aberto (para refinar quando você quiser)
