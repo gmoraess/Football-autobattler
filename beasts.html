@@ -249,7 +249,7 @@ function evalPlay(st,atkCards,defCards){
   const target=fin?Math.max(0,guardVal-(fin.pierce||0)):0;
   const shotVal=fin?fin.shot+shotBonus+A.ATK*0.5+momShot+shotPlus:0;
   let outcome,newPos=st.pos,newPoss=aSide,impToD=0,impToA=0,newMom=mom;
-  if(stealVal>controlVal+2){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; newMom=0; }
+  if(stealVal>controlVal){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; newMom=0; }   // rouba se SUPERAR o controle (empate não rouba)
   else if(fin){ outcome= shotVal>=target?"GOAL":"MISS"; impToD=rawImpToD; newPoss=dSide; newPos=kickoffPos(dSide); newMom=0; }
   else { if(advanceVal>=ADV_TH){ const step=(advanceVal-ADV_TH>=BIGSTEP)?2:1; newPos=zoneAdvance(aSide,st.pos,step); outcome="ADVANCE"; impToD=rawImpToD; newMom=Math.min(MOMCAP,mom+1); }
     else { outcome="STUFF"; newMom=Math.max(0,mom-1); } }
@@ -738,14 +738,14 @@ function describePredict(){
   if(atk){
     res={GOAL:"⚽ GOL!",MISS:"🧤 Chute vai ser defendido",ADVANCE:"👟 Avança ao "+ZNAMES[e.newPos],STUFF:"🧱 Travado — sem avanço",TURNOVER:"✋ Você PERDE a bola!"}[e.outcome];
     cls=e.outcome==="GOAL"?"gold":e.outcome==="ADVANCE"?"good":"warn";
-    const robbed=e.stealVal>e.controlVal+2;
+    const robbed=e.stealVal>e.controlVal;
     chips.push(`<span class="chip">controle ${e.controlVal.toFixed(0)} × roubo ${e.stealVal.toFixed(0)} <span class="${robbed?'no':'ok'}">${robbed?'ROUBADO':'seguro'}</span></span>`);
     if(e.hasFin) chips.push(`<span class="chip">chute ${e.shotVal.toFixed(0)} × guarda ${e.target.toFixed(0)} <span class="${e.shotVal>=e.target?'ok':'no'}">${e.shotVal>=e.target?'GOL':'defende'}</span></span>`);
     else chips.push(`<span class="chip">avanço ${e.advanceVal.toFixed(0)} / ${ADV_TH} <span class="${e.advanceVal>=ADV_TH?'ok':'no'}">${e.advanceVal>=ADV_TH?'avança':'insuf.'}</span></span>`);
   } else {
     res={TURNOVER:"✋ Você ROUBA a bola!",GOAL:"😣 Você SOFRE GOL",MISS:"🧤 Você DEFENDE!",ADVANCE:"⚠️ Rival avança ao "+ZNAMES[e.newPos],STUFF:"🧱 Você segura o rival"}[e.outcome];
     cls=(e.outcome==="TURNOVER"||e.outcome==="MISS")?"good":e.outcome==="GOAL"?"bad":"warn";
-    const robs=e.stealVal>e.controlVal+2;
+    const robs=e.stealVal>e.controlVal;
     chips.push(`<span class="chip">seu desarme ${e.stealVal.toFixed(0)} × controle ${e.controlVal.toFixed(0)} <span class="${robs?'ok':'no'}">${robs?'ROUBA':'não rouba'}</span></span>`);
     if(e.hasFin) chips.push(`<span class="chip">sua guarda ${e.guardVal.toFixed(0)} × chute ${e.shotVal.toFixed(0)} <span class="${e.shotVal>=e.target?'no':'ok'}">${e.shotVal>=e.target?'SOFRE':'defende'}</span></span>`);
   }
@@ -1082,7 +1082,7 @@ function screenStageResult(end,mode){   // mode: "win" | "act" | "out" | "saved"
     : saved
       ? `<p class="gold">Você caiu, mas uma <b>vida extra</b> te salvou e te leva adiante! (vidas restantes: ${RUN.lives})</p>`
     : act
-      ? `<p class="gold">Você superou a final do ${ACT_NAME[RUN.act-1].split("—")[0].trim()}! +🪙 ouro. Um novo mapa o aguarda.</p>`
+      ? `<p class="gold">Você superou a final do ${(ACT_NAME[RUN.act-1]||"Ato").split("—")[0].trim()}! +🪙 ouro. Um novo mapa o aguarda.</p>`
       : `<p class="gold">+🪙 ouro · siga pelo mapa.</p>`;
   app.innerHTML=`<div class="screen center" style="padding-top:6vh">
     <div style="font-size:56px">${icon}</div>
@@ -1104,7 +1104,7 @@ function screenChampion(){
 }
 
 if(typeof module!=="undefined"&&module.exports){
-  module.exports={freshState,resolveContest,evalPlay,aiPick,applyTurn,checkEnd,drawHand,inShootZone,CARDS,BEASTS,STA_MAX,
+  module.exports={freshState,resolveContest,evalPlay,aiPick,applyTurn,checkEnd,drawHand,inShootZone,CARDS,BEASTS,STA_MAX,DECK_ATK,DECK_DEF,
     ROSTER,BOSS,RELICS,RELIC_IDS,EVENTS,ACTS,newRun,makeOpponent,generateMap,getRun:()=>RUN,setRun:r=>RUN=r,
     beginNode:n=>n,
     set:o=>{if(o.IMPACT_DMG!=null){IMPACT_DMG=o.IMPACT_DMG;CARDS.pancada.sta=o.IMPACT_DMG;CARDS.carrinho.sta=o.IMPACT_DMG;}
