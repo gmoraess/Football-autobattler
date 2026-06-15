@@ -125,23 +125,34 @@ const BIGSTEP=6, ADV_TH=7, MOMCAP=6;
 const CARDS={
   passe   :{id:"passe",mode:"atk",type:"support",nm:"Tabela",ic:"🅿️",adv:3,ctrl:5,ds:"Toca e sobe com segurança."},
   drible  :{id:"drible",mode:"atk",type:"support",nm:"Drible",ic:"👟",adv:5,ctrl:2,ds:"Arranca driblando o marcador."},
-  lancamento:{id:"lancamento",mode:"atk",type:"support",nm:"Lançamento",ic:"⚡",adv:7,ctrl:0,ds:"Lança longe: avança muito, expõe a bola."},
+  lancamento:{id:"lancamento",mode:"atk",type:"support",nm:"Lançamento",ic:"⚡",adv:7,ctrl:1,ds:"Lança longe: avança muito."},
   visao   :{id:"visao",mode:"atk",type:"support",nm:"Visão de Jogo",ic:"🧠",adv:2,ctrl:3,shot:6,ds:"Arma a jogada: turbina o próximo chute."},
   finaliza:{id:"finaliza",mode:"atk",type:"finish",nm:"Finalização",ic:"⚽",shot:9,ds:"Finaliza no gol (só na zona de ataque)."},
   colocado:{id:"colocado",mode:"atk",type:"finish",nm:"Chute Colocado",ic:"🪄",shot:6,pierce:5,ds:"No cantinho: passa pela defesa."},
   bicuda  :{id:"bicuda",mode:"atk",type:"finish",nm:"Bicuda",ic:"💥",shot:12,impact:1,ds:"Chutaço: machuca quem estiver na frente."},
-  pancada :{id:"pancada",mode:"atk",type:"impact",nm:"Pancada",ic:"💢",adv:3,sta:IMPACT_DMG,ds:"Joga a bola no marcador: tira fôlego dele."},
+  pancada :{id:"pancada",mode:"atk",type:"impact",nm:"Pancada",ic:"💢",adv:3,ctrl:2,sta:IMPACT_DMG,ds:"Joga a bola no marcador: tira fôlego dele."},
   defesa  :{id:"defesa",mode:"def",type:"block",nm:"Defesa",ic:"🧤",guard:7,ds:"Fecha o gol: difícil furar."},
   bloqueio:{id:"bloqueio",mode:"def",type:"block",nm:"Bloqueio",ic:"🧱",guard:4,ds:"Bloqueia o lance."},
   desarme :{id:"desarme",mode:"def",type:"tackle",nm:"Desarme",ic:"✋",steal:5,ds:"Dá o bote: rouba se vencer o controle do rival."},
   marcacao:{id:"marcacao",mode:"def",type:"pressure",nm:"Marcação",ic:"😖",guard:2,steal:2,ds:"Pressiona: um pouco de tudo."},
   carrinho:{id:"carrinho",mode:"def",type:"impact",nm:"Carrinho",ic:"💢",steal:3,sta:IMPACT_DMG,ds:"Entrada dura: rouba e tira fôlego."},
+  // --- cartas de loja (deck-building, Parte 2) ---
+  meialua :{id:"meialua",mode:"atk",type:"support",nm:"Meia-Lua",ic:"🌙",adv:4,ctrl:4,ds:"Conduz e distribui: equilíbrio."},
+  caneta  :{id:"caneta",mode:"atk",type:"support",nm:"Caneta",ic:"🎩",adv:6,ctrl:3,ds:"Drible atrevido: avança bastante."},
+  cavadinha:{id:"cavadinha",mode:"atk",type:"finish",nm:"Cavadinha",ic:"🥄",shot:7,pierce:3,ds:"Encobre o goleiro (fura a guarda)."},
+  voleio  :{id:"voleio",mode:"atk",type:"finish",nm:"Voleio",ic:"🦵",shot:13,ds:"Chute violento de primeira."},
+  ombro   :{id:"ombro",mode:"atk",type:"impact",nm:"Ombrada",ic:"🪨",adv:4,ctrl:2,sta:IMPACT_DMG+2,ds:"Carga de ombro: avança e machuca mais."},
+  muralha :{id:"muralha",mode:"def",type:"block",nm:"Muralha",ic:"🏰",guard:11,ds:"Paredão: guarda altíssima."},
+  botinha :{id:"botinha",mode:"def",type:"tackle",nm:"Antecipação",ic:"🥷",steal:7,ds:"Lê a jogada e antecipa o desarme."},
+  solada  :{id:"solada",mode:"def",type:"impact",nm:"Solada",ic:"🦶",steal:4,sta:IMPACT_DMG+2,ds:"Entra forte: rouba e machuca mais."},
 };
 const ATK_DECK=[["passe",3],["drible",2],["lancamento",2],["visao",2],["finaliza",2],["colocado",1],["bicuda",1],["pancada",3]];
 const DEF_DECK=[["defesa",3],["bloqueio",2],["desarme",3],["marcacao",2],["carrinho",2]];
 function buildDeck(spec){const d=[];for(const[id,n]of spec)for(let i=0;i<n;i++)d.push(id);return d;}
-function drawHand(mode){const deck=shuffle(buildDeck(mode==="atk"?ATK_DECK:DEF_DECK));
+function drawHand(deckIds){const deck=shuffle(deckIds.slice());
   return deck.slice(0,HAND).map(id=>({...CARDS[id],uid:Math.random().toString(36).slice(2,8)}));}
+const DECK_ATK=buildDeck(ATK_DECK), DECK_DEF=buildDeck(DEF_DECK);   // baralhos padrão (partida avulsa)
+const shortName=b=>b.name.split(",")[0];
 
 const BEASTS={
   tatu:{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:5,DEF:5,TEC:4},
@@ -190,14 +201,14 @@ function resolveContest(st,atkCards,defCards){
   const inZone=inShootZone(aSide,st.pos);
   if(fin&&!inZone) fin=null;
   const advanceVal=atkCards.reduce((s,c)=>s+(c.adv||0),0)+A.ATK*0.5+mom;
-  const controlVal=sup.reduce((s,c)=>s+(c.ctrl||0),0)+A.TEC+(fin?3:0);
+  const controlVal=atkCards.reduce((s,c)=>s+(c.ctrl||0),0)+A.TEC*0.6+3+(fin?2:0);
   const shotBonus =sup.reduce((s,c)=>s+(c.shot||0),0);
   const guardVal  =block.reduce((s,c)=>s+(c.guard||0),0)+press.reduce((s,c)=>s+(c.guard||0),0)+D.DEF*0.7;
   const stealVal  =tackle.reduce((s,c)=>s+(c.steal||0),0)+dImp.reduce((s,c)=>s+(c.steal||0),0)+press.reduce((s,c)=>s+(c.steal||0),0)+D.TEC*0.3;
   const rawImpToD =aImp.reduce((s,c)=>s+(c.sta||0),0)+((fin&&fin.impact)?IMPACT_DMG:0);
   const rawImpToA =dImp.reduce((s,c)=>s+(c.sta||0),0);
   let outcome,newPos=st.pos,newPoss=aSide,impToD=0,impToA=0;
-  if(stealVal>controlVal){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; st.momentum[aSide]=0; }
+  if(stealVal>controlVal+2){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; st.momentum[aSide]=0; }
   else if(fin){
     const target=Math.max(0,guardVal-(fin.pierce||0));
     const shotVal=fin.shot+shotBonus+A.ATK*0.5+mom;
@@ -244,18 +255,20 @@ const FW=660, FH=400, BX=30, BY=20;
 const GOAL_L=BX, GOAL_R=FW-BX, GMY1=FH/2-46, GMY2=FH/2+46, NETD=22;
 const ZX=[FW*0.22, FW*0.41, FW*0.59, FW*0.78];
 
-function startGame(){
-  const st=freshState({...BEASTS.tatu},{...BEASTS.mino});
+function beginMatch(home,away,decks,onEnd){
+  const st=freshState({...home},{...away});
   G={st,ctx:null,canvas:null,busy:false,play:[],hand:[],players:[],
      ball:{x:ZX[st.pos],y:FH/2,px:ZX[st.pos],py:FH/2,rot:0,trail:[],fire:0},
      vfx:[],fire:[],shake:0,anim:null,raf:0,animPoss:"home",
      cam:{s:1,x:FW/2,y:FH/2},camT:{s:1,x:FW/2,y:FH/2},slow:1,slowT:1,netRipple:{L:0,R:0},
-     phase:"buildup",challenge:null,shooter:null,shotSpot:null,carrier:null,receiver:null,passTo:null};
+     phase:"buildup",challenge:null,shooter:null,shotSpot:null,carrier:null,receiver:null,passTo:null,
+     decks,onEnd};
   setupPlayers(); renderMatch();
-  log("sys",`🏟️ ${st.beasts.home.crest} ${st.beasts.home.name} entra em campo contra ${st.beasts.away.crest} ${st.beasts.away.name}`);
+  log("sys",`🏟️ ${st.beasts.home.crest} ${shortName(st.beasts.home)} x ${shortName(st.beasts.away)} ${st.beasts.away.crest}`);
   log("sys",`5 contra 5 · ${TURNS} turnos · avance até o Ataque para finalizar.`);
   loopStart(); nextTurn();
 }
+function startGame(){ beginMatch(BEASTS.tatu,BEASTS.mino,{pAtk:DECK_ATK,pDef:DECK_DEF,oAtk:DECK_ATK,oDef:DECK_DEF},null); }
 function setupPlayers(){
   G.players=[
     {team:"home",role:"GK", num:1,ax:GOAL_L+18,ay:FH/2},
@@ -274,22 +287,22 @@ function setupPlayers(){
 function nextTurn(){
   if(G.st.over)return;
   G.busy=true; G.play=[]; renderHud();
-  banner(()=>{ G.hand=drawHand(G.st.possession==="home"?"atk":"def"); G.busy=false; renderHandArea(); });
+  banner(()=>{ G.hand=drawHand(G.st.possession==="home"?G.decks.pAtk:G.decks.pDef); G.busy=false; renderHandArea(); });
 }
 function executePlay(){
   if(G.busy||G.st.over)return;
   if(G.play.length===0){ toast("Jogue ao menos uma carta"); return; }
   G.busy=true;
   const atk=G.st.possession==="home";
-  const aiPlay=aiPick(drawHand(atk?"def":"atk"),atk?"def":"atk",G.st,"away");
+  const aiPlay=aiPick(drawHand(atk?G.decks.oDef:G.decks.oAtk),atk?"def":"atk",G.st,"away");
   const atkCards=atk?G.play:aiPlay, defCards=atk?aiPlay:G.play;
   const oldPos=G.st.pos;
   const res=resolveContest(G.st,atkCards,defCards);
-  log("sys",`${G.st.beasts.away.crest} Górtax joga: ${aiPlay.length?aiPlay.map(c=>c.ic).join(" "):"—"}`);
+  log("sys",`${G.st.beasts.away.crest} ${shortName(G.st.beasts.away)} joga: ${aiPlay.length?aiPlay.map(c=>c.ic).join(" "):"—"}`);
   runAnim(buildAnim(res,oldPos),()=>{
     const cls=res.type==="GOAL"?"goal":res.type==="CONCEDE"?"miss":(res.type==="STEAL"||res.type==="DEFEND"||res.type==="HELD")?"good":res.type==="ADVANCE"?"adv":(res.type==="MISS"||res.type==="LOSE"||res.type==="PRESSURED")?"miss":"";
     let line=narrate(res);
-    if(res.dmgAway>0)line+=` 💥 -${res.dmgAway} fôlego do Górtax`;
+    if(res.dmgAway>0)line+=` 💥 -${res.dmgAway} fôlego do ${shortName(G.st.beasts.away)}`;
     if(res.dmgHome>0)line+=` 💢 você -${res.dmgHome}`;
     log(cls,`T${Math.min(G.st.turn,TURNS)}: ${line}`);
     applyTurn(G.st,res); renderHud();
@@ -298,18 +311,18 @@ function executePlay(){
   });
 }
 function narrate(res){
-  const z=ZNAMES[res.pos];
+  const z=ZNAMES[res.pos], hN=shortName(G.st.beasts.home), aN=shortName(G.st.beasts.away);
   switch(res.type){
-    case "GOAL": return pick(["⚽ GOOOL! No fundo da rede!","⚽ GOLAÇO! A bola morre no ângulo!","⚽ É GOL! Couraça estufa a rede!"]);
-    case "CONCEDE": return "😣 Górtax balança a sua rede...";
+    case "GOAL": return pick([`⚽ GOOOL! ${hN} no fundo da rede!`,"⚽ GOLAÇO! A bola morre no ângulo!","⚽ É GOL! Estufou a rede!"]);
+    case "CONCEDE": return `😣 ${aN} balança a sua rede...`;
     case "MISS": return pick(["🧤 Chutou — e o goleiro voa pra defender!","↗️ Pra fora! Por pouco!","🧤 Defendeu! Que goleiraço."]);
     case "DEFEND": return "🧤 Que defesa! Você recupera a bola.";
-    case "ADVANCE": return pick([`👟 Troca de passes e chega ao ${z}.`,`👟 Couraça sobe o campo até o ${z}.`,`⚡ Belo lançamento! Avança ao ${z}.`]);
-    case "PRESSURED": return `⚠️ Górtax avança e chega ao ${z}.`;
+    case "ADVANCE": return pick([`👟 Troca de passes e chega ao ${z}.`,`👟 ${hN} sobe o campo até o ${z}.`,`⚡ Belo lançamento! Avança ao ${z}.`]);
+    case "PRESSURED": return `⚠️ ${aN} avança e chega ao ${z}.`;
     case "STEAL": return "✋ Desarme! Você rouba a bola.";
-    case "LOSE": return "✋ Górtax dá o bote e rouba a bola!";
+    case "LOSE": return `✋ ${aN} dá o bote e rouba a bola!`;
     case "STUFF": return "🧱 A marcação fecha o espaço — sem avanço.";
-    case "HELD": return "🧱 Você fecha o espaço e segura o Górtax.";
+    case "HELD": return `🧱 Você fecha o espaço e segura o ${aN}.`;
     default: return "…";
   }
 }
@@ -515,8 +528,7 @@ function drawPlayer(ctx,p){
   ctx.fillStyle="rgba(0,0,0,.28)";ctx.beginPath();ctx.ellipse(p.x,p.y+12,12,4,0,0,7);ctx.fill();
   const carrier=Math.hypot(p.x-G.ball.x,p.y-G.ball.y)<20;
   if(carrier){ctx.strokeStyle="#f5c451";ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,16,0,7);ctx.stroke();}
-  if(p.star){ p.team==="home"?drawTatu(ctx,p.x,p.y,p.flinch>0):drawMino(ctx,p.x,p.y,p.flinch>0);
-    return; }
+  if(p.star){ drawStar(ctx,p.x,p.y,p.team==="home"?G.st.beasts.home:G.st.beasts.away,p.flinch>0); return; }
   const col=p.team==="home"?"#3f86ad":"#b04646";
   ctx.fillStyle=p.flinch>0?"#fff":col;ctx.beginPath();ctx.arc(p.x,p.y,11,0,7);ctx.fill();
   ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=1;ctx.stroke();
@@ -535,25 +547,23 @@ function drawBall(ctx){
   ctx.beginPath();for(let i=0;i<5;i++){const a=i/5*7;const r=3.3;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();
   ctx.restore();
 }
-function drawTatu(ctx,cx,cy,fl){ctx.save();ctx.translate(cx,cy);ctx.scale(.62,.62);if(fl)ctx.globalAlpha=.85;
-  px(ctx,-20,-6,40,42,fl?"#cfc0a0":"#7a6a4a");for(let i=-16;i<18;i+=8)px(ctx,i,-6,2,42,"#5a4d34");
-  px(ctx,-6,6,12,3,"#b3372f");px(ctx,-12,-28,24,24,"#8a7a58");px(ctx,-12,-28,24,7,"#5a4d34");
-  px(ctx,4,-18,8,5,"#c9b889");px(ctx,-7,-17,4,4,"#39d0ff");px(ctx,-26,0,8,20,"#7a6a4a");px(ctx,18,0,8,20,"#7a6a4a");ctx.restore();}
-function drawMino(ctx,cx,cy,fl){ctx.save();ctx.translate(cx,cy);ctx.scale(.62,.62);if(fl)ctx.globalAlpha=.85;
-  px(ctx,-22,-8,44,44,fl?"#9aa0ac":"#2e3340");px(ctx,-7,6,14,3,"#c0392b");px(ctx,-13,-30,26,24,"#3a4150");
-  px(ctx,-20,-32,8,5,"#cbb58a");px(ctx,12,-32,8,5,"#cbb58a");px(ctx,-9,-20,5,5,"#ff5151");px(ctx,4,-20,5,5,"#ff5151");
-  px(ctx,-30,-2,9,22,"#2e3340");px(ctx,21,-2,9,22,"#2e3340");ctx.restore();}
+function drawStar(ctx,cx,cy,beast,fl){ ctx.save();ctx.translate(cx,cy);
+  ctx.fillStyle="rgba(0,0,0,.3)";ctx.beginPath();ctx.arc(0,3,16,0,7);ctx.fill();
+  ctx.fillStyle=fl?"#ffffff":beast.color;ctx.beginPath();ctx.arc(0,0,15,0,7);ctx.fill();
+  ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.stroke();
+  ctx.globalAlpha=fl?.55:1;ctx.font="19px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(beast.crest,0,1); ctx.restore(); }
 
 /* ----------------------------- RENDER UI --------------------------------- */
 function renderMatch(){
   app.innerHTML=`<div class="screen">
     <div class="scoreboard">
-      <div class="team home"><div class="nm">${G.st.beasts.home.crest} Couraça</div>
+      <div class="team home"><div class="nm">${G.st.beasts.home.crest} ${shortName(G.st.beasts.home)}</div>
         <div class="stabar"><div id="staH" style="width:100%"></div></div>
         <div style="font-size:10px" class="muted">fôlego <span id="staHn">100</span></div></div>
       <div class="scoremid"><div class="sc"><span id="scH">0</span> <span class="muted">:</span> <span id="scA">0</span></div>
         <div class="turn" id="turnLbl">Turno 1 / ${TURNS}</div></div>
-      <div class="team away"><div class="nm">Górtax ${G.st.beasts.away.crest}</div>
+      <div class="team away"><div class="nm">${shortName(G.st.beasts.away)} ${G.st.beasts.away.crest}</div>
         <div class="stabar"><div id="staA" style="width:100%;background:linear-gradient(90deg,#c0392b,#ff6b6b)"></div></div>
         <div style="font-size:10px;text-align:right" class="muted">fôlego <span id="staAn">100</span></div></div>
     </div>
@@ -583,7 +593,7 @@ function renderZonebar(){
     return `<div class="zcell ${ball?'ball':''} ${shoot?'shoot':''}"><span class="zl">${nm}</span><span class="b">${ball?'⚽':''}</span></div>`;}).join("");
   const d=$("#dir"); if(d) d.innerHTML = G.st.possession==="home"
     ? `${G.st.beasts.home.crest} Você ataca →  <span class="muted">(chegue em <b>Ataque ⚽</b> p/ finalizar)</span>`
-    : `<span class="muted">defenda!</span>  ← ataca Górtax ${G.st.beasts.away.crest}`;
+    : `<span class="muted">defenda!</span>  ← ataca ${shortName(G.st.beasts.away)} ${G.st.beasts.away.crest}`;
 }
 function cardEl(c,mini,onclick,disabled){
   const el=document.createElement("div");
@@ -638,8 +648,9 @@ function banner(cb){
 function showBig(txt,color){const o=document.createElement("div");o.className="bigtext";o.style.color=color;o.textContent=txt;document.body.appendChild(o);setTimeout(()=>o.remove(),1400);}
 function showResult(end){
   cancelAnimationFrame(G.raf);
+  if(G.onEnd){ G.onEnd(end); return; }   // campanha cuida do pós-jogo
   const win=end.winner==="home";
-  const names={home:"Couraça",away:"Górtax"};
+  const names={home:shortName(G.st.beasts.home),away:shortName(G.st.beasts.away)};
   const reason={KO:"por NOCAUTE de fôlego! 💀",TIME:"no placar final.",GOLDEN:"com GOL DE OURO na morte súbita! ✨",GOLEADA:"por GOLEADA (5 de diferença)! 🔥"}[end.reason];
   app.innerHTML=`<div class="screen center" style="padding-top:6vh">
     <div style="font-size:58px">${win?"🏆":"💀"}</div><h1 class="${win?'gold':'bad'}">${win?"VITÓRIA!":"Derrota"}</h1>
@@ -655,25 +666,232 @@ function showResult(end){
 function log(cls,html){const box=$("#log");if(!box)return;const d=document.createElement("div");d.className="e "+(cls||"");d.innerHTML=html;box.appendChild(d);box.scrollTop=box.scrollHeight;}
 function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1400);}
 
+/* ===================== PARTE 2 — CAMPANHA (Copa + deck) =================== */
+// Baralho-base COMUM (mantém as feras equilibradas; a identidade vem do stat + da loja)
+const BASE_ATK=["passe","passe","drible","drible","meialua","visao","finaliza","finaliza","colocado","pancada"];
+const BASE_DEF=["defesa","defesa","bloqueio","desarme","desarme","marcacao","carrinho"];
+const JAC_ATK =["passe","passe","drible","drible","ombro","visao","finaliza","finaliza","pancada","pancada"];
+const ROSTER={
+  tatu  :{key:"tatu",name:"Couraça, o Tatu de Guerra",crest:"🛡️",color:"#7a6a4a",ATK:4,DEF:6,TEC:5,
+    style:"Equilibrado / Defensivo",desc:"Casca dura: segura o jogo e pune nos detalhes.",
+    atk:BASE_ATK,def:BASE_DEF},
+  mino  :{key:"mino",name:"Górtax, o Minotauro de Ônix",crest:"🐂",color:"#b04646",ATK:6,DEF:4,TEC:5,
+    style:"Ofensivo / Força",desc:"Vai pra cima: chute forte e pressão constante.",
+    atk:BASE_ATK,def:BASE_DEF},
+  falcao:{key:"falcao",name:"Aurélio, o Falcão Real",crest:"🦅",color:"#3f86ad",ATK:5,DEF:4,TEC:6,
+    style:"Controle / Velocidade",desc:"Posse e precisão: tabela e não perde a bola.",
+    atk:BASE_ATK,def:BASE_DEF},
+  jacare:{key:"jacare",name:"Mandíbula, o Jacaré-Rei",crest:"🐊",color:"#3f7a52",ATK:5,DEF:5,TEC:5,
+    style:"Impacto / Desgaste",desc:"Mordida: baralho voltado ao fôlego (💥).",atk:JAC_ATK,def:BASE_DEF},
+};
+const BOSS={key:"quetzal",name:"Quetzal, a Serpente Imortal",crest:"🐉",color:"#caa033",ATK:6,DEF:5,TEC:5,
+  style:"Lendária",desc:"A campeã imortal que reina há mil anos.",
+  atk:["passe","drible","caneta","visao","meialua","finaliza","voleio","colocado","bicuda","pancada"],
+  def:["defesa","muralha","bloqueio","desarme","botinha","marcacao","carrinho","solada"]};
+const STAGES=[
+  {key:"g1",name:"Fase de Grupos · Jogo 1",ic:"🟢",tier:0,reward:5},
+  {key:"g2",name:"Fase de Grupos · Jogo 2",ic:"🟢",tier:0,reward:5},
+  {key:"g3",name:"Fase de Grupos · Jogo 3",ic:"🟢",tier:1,reward:6},
+  {key:"r16",name:"Oitavas de Final",ic:"⚔️",tier:1,reward:7,ko:true},
+  {key:"qf",name:"Quartas de Final",ic:"⚔️",tier:2,reward:8,ko:true},
+  {key:"sf",name:"Semifinal",ic:"🔥",tier:2,reward:10,ko:true},
+  {key:"final",name:"A FINAL — Serpente Imortal",ic:"👑",tier:3,reward:0,ko:true,boss:true},
+];
+const SHOP_POOL=[["passe",2],["drible",3],["lancamento",3],["visao",4],["finaliza",4],["colocado",5],["bicuda",6],
+  ["pancada",3],["meialua",4],["caneta",6],["cavadinha",5],["voleio",7],["ombro",5],
+  ["defesa",4],["bloqueio",3],["desarme",4],["marcacao",3],["carrinho",5],["muralha",7],["botinha",6],["solada",6]];
+
+let RUN=null;
+function newRun(key){ const b=ROSTER[key]; RUN={beast:b,atk:b.atk.slice(),def:b.def.slice(),gold:6,stage:0,history:[],opp:null,shop:null}; }
+function makeOpponent(stage){
+  let b = stage.boss?BOSS:ROSTER[pick(Object.keys(ROSTER).filter(k=>k!==RUN.beast.key))];
+  const tierMul=[0.60,0.72,0.82,0.90], mul=tierMul[stage.tier];
+  const beast={...b,ATK:Math.max(3,Math.round(b.ATK*mul)),DEF:Math.max(3,Math.round(b.DEF*mul)),TEC:Math.max(3,Math.round(b.TEC*mul))};
+  const atk=b.atk.slice(), def=b.def.slice();
+  const premA=["bicuda","voleio","caneta","visao"], premD=["muralha","botinha","solada"];
+  const prem=[0,0,0,1][stage.tier];
+  for(let i=0;i<prem;i++){ atk.push(pick(premA)); def.push(pick(premD)); }
+  return {beast,atk,def};
+}
+function deckBreak(ids){const c={};ids.forEach(id=>{const t=CARDS[id].type;c[t]=(c[t]||0)+1;});
+  return Object.entries(c).map(([t,n])=>`${typeLabel(t)}×${n}`).join(" · ");}
+
+function onCampaignEnd(end){
+  const win=end.winner==="home", stage=STAGES[RUN.stage];
+  RUN.history.push(win);
+  if(win) RUN.gold+=stage.reward;
+  if(win&&stage.boss){ screenChampion(); return; }
+  if(!win&&stage.ko){ screenStageResult(end,"out"); return; }   // mata-mata: derrota elimina
+  RUN.stage++; RUN.opp=null; RUN.shop=null;                       // grupos: avança mesmo perdendo
+  screenStageResult(end, win?"win":"groupLoss");
+}
+function startStageMatch(){
+  if(!RUN.opp) RUN.opp=makeOpponent(STAGES[RUN.stage]);
+  beginMatch(RUN.beast,RUN.opp.beast,{pAtk:RUN.atk,pDef:RUN.def,oAtk:RUN.opp.atk,oDef:RUN.opp.def},onCampaignEnd);
+}
+
+/* --------------------------------- TELAS --------------------------------- */
 function screenTitle(){
-  app.innerHTML=`<div class="screen center" style="padding-top:6vh">
-    <div style="font-size:54px">🛡️⚽</div><h1>WORLD CUP BEASTS</h1>
-    <p style="max-width:450px;margin:6px auto">Duelo de cartas <b>5 contra 5</b>. Você comanda <b class="gold">Couraça, o Tatu de Guerra</b>.</p>
-    <div class="card-ui" style="max-width:440px;margin:14px auto;text-align:left">
-      <h3>Como funciona</h3>
-      <p>• <b>${TURNS} turnos.</b> Quem tem a bola <b>ataca</b>; o outro <b>defende</b>.</p>
-      <p>• Monte a jogada com <b>cartas</b> (até ${MAXPLAY}; só <b>1 finalização</b>). Cada carta tem valores claros.</p>
-      <p>• <b>Avance</b> pelo campo (barra de cima: defesa→meio→ataque) e <b>finalize no Ataque</b> — a bola vai rolar até o fundo do gol. ⚽🔥</p>
-      <p>• <b>Fôlego</b> é vida (💥). Vitória: placar (empate→morte súbita) · 5 de diferença · nocaute.</p>
+  app.innerHTML=`<div class="screen center" style="padding-top:5vh">
+    <div style="font-size:54px">🐉⚽</div><h1>WORLD CUP BEASTS</h1>
+    <p style="max-width:470px;margin:6px auto">Num mundo onde tudo se decide num <b>embate de futebol</b>, as Feras das Nações
+      disputam a <b class="gold">Copa dos Mil Anos</b>. Vença o chaveamento e enfrente a <b>Serpente Imortal</b> na final.</p>
+    <div class="card-ui" style="max-width:450px;margin:14px auto;text-align:left">
+      <h3>A campanha</h3>
+      <p>• Escolha sua <b>fera</b> (cada uma com baralho e estilo próprios).</p>
+      <p>• Suba na Copa: <b>Grupos → Oitavas → Quartas → Semi → Final</b>. Perdeu, a corrida acaba.</p>
+      <p>• Entre os jogos, gaste 🪙 na <b>loja</b> e <b>monte seu baralho</b> (deck-building).</p>
+      <p>• Na partida: avance por passes e <b>finalize no Ataque</b>; <b>fôlego</b> é vida. Tudo é valor vs valor — <b>sem sorte</b> na resolução.</p>
     </div>
-    <button class="btn primary" id="play" style="max-width:300px;width:100%">▶ Entrar em campo</button>
-    <p class="muted" style="font-size:11px;margin-top:16px">Parte 1 — 5v5 com campo animado</p>
+    <div class="col" style="max-width:300px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
+      <button class="btn primary full" id="camp">🏆 Iniciar Campanha</button>
+      <button class="btn ghost full" id="exib">⚡ Partida Avulsa (treino)</button>
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:14px">Parte 2 — Copa + deck-building</p>
   </div>`;
-  $("#play").onclick=startGame;
+  $("#camp").onclick=screenSelect; $("#exib").onclick=startGame;
+}
+function screenSelect(){
+  const cards=Object.values(ROSTER).map(b=>`
+    <div class="card-ui beastpick" data-k="${b.key}" style="cursor:pointer;border-color:${b.color}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:34px">${b.crest}</div>
+        <div><div style="font-weight:800">${shortName(b)}</div><div class="pill" style="color:${b.color}">${b.style}</div></div>
+      </div>
+      <p style="margin:8px 0 6px">${b.desc}</p>
+      <div style="font-size:12px;font-weight:700">🗡️ATA ${b.ATK} · 🛡️DEF ${b.DEF} · 🎯TEC ${b.TEC}</div>
+    </div>`).join("");
+  app.innerHTML=`<div class="screen">
+    <h2 class="center">Escolha sua Fera</h2>
+    <p class="center muted" style="margin-bottom:12px">Define seus atributos e o baralho inicial — a corrida vai evoluir ele.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${cards}</div>
+    <button class="btn ghost full" id="back" style="margin-top:12px">← Voltar</button>
+  </div>`;
+  app.querySelectorAll(".beastpick").forEach(el=>el.onclick=()=>{ newRun(el.dataset.k); screenHub(); });
+  $("#back").onclick=screenTitle;
+}
+function bracketHTML(){
+  return `<div style="display:flex;flex-direction:column;gap:5px">`+STAGES.map((s,i)=>{
+    const stt=i<RUN.stage?"done":i===RUN.stage?"cur":"lock";
+    const mark=i<RUN.stage?'<span class="good">✔</span>':i===RUN.stage?'<span class="gold">▶</span>':'<span class="muted">🔒</span>';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;
+      background:${i===RUN.stage?'var(--panel2)':'var(--panel)'};opacity:${stt==='lock'?.5:1}">
+      <span style="width:22px;text-align:center">${s.ic}</span><span style="font-weight:700;font-size:13px;flex:1">${s.name}</span>${mark}</div>`;
+  }).join("")+`</div>`;
+}
+function screenHub(){
+  if(!RUN.opp) RUN.opp=makeOpponent(STAGES[RUN.stage]);
+  const st=STAGES[RUN.stage], o=RUN.opp.beast;
+  app.innerHTML=`<div class="screen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-weight:800">${RUN.beast.crest} ${shortName(RUN.beast)}</div>
+      <div class="gold" style="font-weight:800">🪙 ${RUN.gold}</div>
+    </div>
+    <h2>Caminho da Copa</h2>
+    ${bracketHTML()}
+    <div class="card-ui" style="margin-top:12px">
+      <div style="font-size:12px;color:var(--muted)">Próximo confronto · ${st.name}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+        <div style="font-size:30px">${o.crest}</div>
+        <div><div style="font-weight:800">${shortName(o)}</div>
+          <div style="font-size:12px;font-weight:700">🗡️${o.ATK} · 🛡️${o.DEF} · 🎯${o.TEC} <span class="pill">${o.style}</span></div></div>
+      </div>
+    </div>
+    <div class="card-ui" style="margin-top:10px">
+      <div style="font-size:12px;color:var(--muted)">Seu baralho</div>
+      <div style="font-size:12px;margin-top:3px"><b>Ataque</b> (${RUN.atk.length}): ${deckBreak(RUN.atk)}</div>
+      <div style="font-size:12px;margin-top:3px"><b>Defesa</b> (${RUN.def.length}): ${deckBreak(RUN.def)}</div>
+    </div>
+    <div class="controls"><button class="btn full" id="shop">🛒 Loja & Baralho</button>
+      <button class="btn primary full" id="go">⚽ Entrar em campo</button></div>
+  </div>`;
+  $("#shop").onclick=screenShop; $("#go").onclick=startStageMatch;
+}
+function screenShop(){
+  if(!RUN.shop){ const pool=shuffle(SHOP_POOL.slice()).slice(0,4); RUN.shop=pool.map(([id,c])=>({id,c,sold:false})); }
+  const items=RUN.shop.map((it,idx)=>{
+    if(it.sold) return "";
+    const c=CARDS[it.id];
+    const v=[]; if(c.adv)v.push("av "+c.adv); if(c.ctrl)v.push("ctl "+c.ctrl); if(c.shot)v.push("ch "+c.shot);
+    if(c.pierce)v.push("fura "+c.pierce); if(c.guard)v.push("gd "+c.guard); if(c.steal)v.push("des "+c.steal); if(c.sta)v.push("💥"+c.sta);
+    const can=RUN.gold>=it.c;
+    return `<div class="card-ui" style="display:flex;align-items:center;gap:10px;padding:10px">
+      <div style="font-size:24px">${c.ic}</div>
+      <div style="flex:1"><div style="font-weight:800;font-size:13px">${c.nm} <span class="pill">${typeLabel(c.type)} · ${c.mode==="atk"?"ataque":"defesa"}</span></div>
+        <div style="font-size:11px;color:#9cd6ff">${v.join(" · ")}</div><div style="font-size:11px;color:var(--muted)">${c.ds}</div></div>
+      <button class="btn ${can?'primary':''}" data-buy="${idx}" ${can?"":"disabled"}>🪙 ${it.c}</button>
+    </div>`;
+  }).join("");
+  app.innerHTML=`<div class="screen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h2 style="margin:0">🛒 Mercado</h2><div class="gold" style="font-weight:800">🪙 ${RUN.gold}</div></div>
+    <p class="muted" style="font-size:12px;margin-bottom:8px">Compre cartas para o seu baralho (vão para Ataque ou Defesa conforme o tipo).</p>
+    <div style="display:flex;flex-direction:column;gap:8px">${items||'<p class="muted center">Tudo comprado.</p>'}</div>
+    <div class="card-ui" style="margin-top:10px;font-size:12px">
+      <b>Ataque</b> (${RUN.atk.length}): ${deckBreak(RUN.atk)}<br><b>Defesa</b> (${RUN.def.length}): ${deckBreak(RUN.def)}</div>
+    <div class="controls"><button class="btn full" id="rem">🗑️ Enxugar baralho (🪙3)</button>
+      <button class="btn primary full" id="back">✔ Pronto</button></div>
+  </div>`;
+  app.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{
+    const it=RUN.shop[+b.dataset.buy]; if(it.sold||RUN.gold<it.c)return;
+    RUN.gold-=it.c; (CARDS[it.id].mode==="atk"?RUN.atk:RUN.def).push(it.id); it.sold=true;
+    toast(CARDS[it.id].nm+" comprada!"); screenShop();
+  });
+  $("#rem").onclick=()=>{ if(RUN.gold<3){toast("Ouro insuficiente");return;} screenRemove(); };
+  $("#back").onclick=screenHub;
+}
+function screenRemove(){
+  const mk=(ids,which)=>ids.map((id,i)=>{const c=CARDS[id];
+    return `<button class="btn" style="padding:7px 9px;font-size:12px" data-rm="${which}:${i}">${c.ic} ${c.nm}</button>`;}).join(" ");
+  app.innerHTML=`<div class="screen">
+    <h2>🗑️ Enxugar baralho <span class="muted" style="font-size:13px">(🪙3 · remove 1)</span></h2>
+    <p class="muted" style="font-size:12px">Tirar cartas fracas deixa as boas saírem mais. Toque na carta a remover.</p>
+    <div class="card-ui" style="margin-top:8px"><div style="font-weight:700;font-size:12px;margin-bottom:6px">Ataque</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${mk(RUN.atk,"atk")}</div></div>
+    <div class="card-ui" style="margin-top:8px"><div style="font-weight:700;font-size:12px;margin-bottom:6px">Defesa</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${mk(RUN.def,"def")}</div></div>
+    <button class="btn ghost full" id="back" style="margin-top:10px">← Voltar</button>
+  </div>`;
+  app.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
+    const [w,i]=b.dataset.rm.split(":"); const arr=w==="atk"?RUN.atk:RUN.def;
+    if(arr.length<=6){toast("Baralho no mínimo");return;}
+    arr.splice(+i,1); RUN.gold-=3; toast("Carta removida"); screenShop();
+  });
+  $("#back").onclick=screenShop;
+}
+function screenStageResult(end,mode){   // mode: "win" | "groupLoss" | "out"
+  const playedStage=STAGES[RUN.history.length-1] || STAGES[RUN.stage];
+  const reason={KO:"por nocaute de fôlego 💀",TIME:"no placar",GOLDEN:"com gol de ouro ✨",GOLEADA:"por goleada 🔥"}[end.reason];
+  const out=mode==="out", win=mode==="win";
+  const icon=win?"✅":out?"💀":"😣";
+  const title=win?"Vitória!":out?"Eliminado":"Derrota — mas você avança";
+  const sub=out
+    ? `<p class="muted">A corrida termina nas eliminatórias. Caminho: ${RUN.history.map(w=>w?"🟢":"🔴").join(" ")}</p>`
+    : win
+      ? `<p class="gold">+🪙 ${playedStage.reward} de ouro</p>`
+      : `<p class="muted">Na fase de grupos a derrota não elimina — siga para o próximo jogo e reforce o elenco.</p>`;
+  app.innerHTML=`<div class="screen center" style="padding-top:6vh">
+    <div style="font-size:56px">${icon}</div>
+    <h1 class="${win?'good':out?'bad':'gold'}">${title}</h1>
+    <p>${G.st.score.home} <span class="muted">x</span> ${G.st.score.away} · ${reason}</p>
+    ${sub}
+    <button class="btn primary full" id="next" style="margin-top:16px;max-width:300px">${out?"↻ Nova campanha":"Continuar →"}</button>
+  </div>`;
+  $("#next").onclick=out?screenTitle:screenHub;
+}
+function screenChampion(){
+  app.innerHTML=`<div class="screen center" style="padding-top:7vh">
+    <div style="font-size:70px">🏆</div><h1 class="gold">CAMPEÃ DOS MIL ANOS!</h1>
+    <p style="max-width:440px;margin:6px auto">${shortName(RUN.beast)} derrotou a Serpente Imortal e reinará pela próxima era.</p>
+    <div class="card-ui" style="display:inline-block;margin-top:12px"><p style="font-weight:800">Caminho perfeito: ${RUN.history.map(w=>w?"🟢":"🔴").join(" ")}</p></div>
+    <button class="btn primary full" id="again" style="margin-top:16px;max-width:300px">↻ Nova campanha</button>
+  </div>`;
+  $("#again").onclick=screenTitle;
 }
 
 if(typeof module!=="undefined"&&module.exports){
   module.exports={freshState,resolveContest,aiPick,applyTurn,checkEnd,drawHand,inShootZone,CARDS,BEASTS,
+    ROSTER,BOSS,STAGES,newRun,makeOpponent,getRun:()=>RUN,
     set:o=>{if(o.IMPACT_DMG!=null){IMPACT_DMG=o.IMPACT_DMG;CARDS.pancada.sta=o.IMPACT_DMG;CARDS.carrinho.sta=o.IMPACT_DMG;}
       if(o.FATIGUE!=null)FATIGUE=o.FATIGUE; if(o.TURNS!=null)TURNS=o.TURNS;}};
 }

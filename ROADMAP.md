@@ -110,19 +110,17 @@ Só um time tem a bola por vez, então cada turno é uma **disputa de posse**:
 
 ---
 
-## 5. PARTE 2 — Mundo, Mascotes, Builds e Integração
+## 5. PARTE 2 — Campanha da Copa + Deck-building ✅ ENTREGUE (`beasts.html`)
 
-**Objetivo:** transformar o protótipo num jogo completo com identidade e profundidade.
+1. ✅ **Lore Yu-Gi-Oh:** tela-título com o mundo onde tudo se decide num embate de futebol (Copa dos Mil Anos).
+2. ✅ **Mascotes-fera selecionáveis (4):** 🛡️ Couraça (tatu, muralha), 🐂 Górtax (minotauro, artilheiro), 🦅 Aurélio (falcão, maestro/controle), 🐊 Mandíbula (jacaré, impacto). Cada fera = stats + baralho (sprite genérico por crista).
+3. ✅ **Deck-building (loja):** entre as fases, compra de cartas (vão p/ Ataque ou Defesa) e "enxugar o baralho" (remover carta); 8 cartas novas de loja (Meia-Lua, Caneta, Cavadinha, Voleio, Ombrada, Muralha, Antecipação, Solada).
+4. ✅ **Chaveamento da Copa:** Grupos (3, **perdoáveis** — derrota não elimina) → Oitavas → Quartas → Semi → **Final** (mata-mata elimina). Oponentes escalados por fase + premium nos tiers altos.
+5. ✅ **Chefe final:** 🐉 **Quetzal, a Serpente Imortal** (baralho lendário: Voleio, Muralha, Caneta…).
+6. ✅ **Telas:** título, seleção de fera, hub com bracket + prévia do oponente + resumo do baralho, loja, resultado de fase (vitória/derrota-nos-grupos/eliminado), campeão, partida avulsa (treino).
+7. ✅ **Balanceamento (sim. headless):** **campeão por fera 15% / 15% / 18% / 21%** (paridade), e **9-11% sem usar a loja** (deck-building tem valor). Duelo base segue equilibrado (gol 57% vs impacto 59%). **0 exceções** em campanha + render.
 
-1. **Lore estilo Yu-Gi-Oh:** mundo onde tudo se decide em duelos de futebol (texto no jogo + README); facções = **nações-fera**.
-2. **Mascotes remodelados:** protagonista (Tatu) + **roster de adversários** (mascotes de Copa reimaginados como feras), cada um com identidade e **viés de símbolos** no slot.
-3. **Deck-building no slot:** comprar/forjar símbolos para os reels na loja; **relíquias** que mudam regras de payline; **builds** (gol / controle de posse / 💥-STA).
-4. **Reintegração no loop de Copa:** bracket (Grupos → Final) e loja entre rodadas, agora girando em torno do slot/deck.
-5. **Chefe final:** uma **fera lendária** com reels/regra única.
-6. **Polish:** balanceamento por mascote, VFX por fera, **áudio** (impacto pede som), arte pixel.
-7. **Arquitetura plugável** para os futuros **3 personagens** (slot / dado / carta) — uma interface comum de "resolvedor de aleatoriedade", deixando a porta aberta sem comprometer agora.
-
-**Entregável da Parte 2:** o jogo roguelike completo, com mundo, mascotes e builds em volta da máquina de slot.
+**Pendências de polimento (futuro):** sprites únicos por fera (hoje é disco+emoji), áudio, mais cartas/relíquias, e a arquitetura plugável p/ os 3 resolvedores (carta já é o oficial; dado/slot ficam como extensão).
 
 ---
 
