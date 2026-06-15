@@ -93,6 +93,15 @@
   @keyframes fade{from{opacity:0}to{opacity:1}}
   .screen{animation:fade .3s ease}
   .controls{display:flex;gap:8px;margin-top:8px}
+  .intent{margin:0 0 8px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:#1a1410;font-size:12px;line-height:1.4}
+  .intent .who{font-weight:800;color:#ffcaa0}
+  .intent .ic{font-size:16px;margin:0 1px}
+  .predict{margin:6px 0 2px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:#0e1626;font-size:12px;line-height:1.5}
+  .predict .res{font-weight:800;font-size:14px}
+  .predict .res.good{color:var(--good)} .predict .res.bad{color:var(--bad)} .predict .res.gold{color:var(--gold)} .predict .res.warn{color:#ffb07a}
+  .predict .chip{display:inline-block;margin:3px 4px 0 0;padding:1px 7px;border-radius:7px;background:#0c1322;border:1px solid var(--line);font-size:11px}
+  .predict .ok{color:var(--good)} .predict .no{color:var(--bad)}
+  .kit{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;margin-right:3px}
 </style>
 </head>
 <body>
@@ -187,7 +196,8 @@ function aiPick(hand,mode,st,side){
     : (c.type==="tackle"?6:c.type==="impact"?5:c.type==="pressure"?4:c.type==="block"?2:0);
   return hand.slice().sort((a,b)=>prio(b)-prio(a)).slice(0,MAXPLAY);
 }
-function resolveContest(st,atkCards,defCards){
+// NÚCLEO PURO da resolução (sem mutar estado, sem sorte) — usado também pelo MEDIDOR de resultado
+function evalPlay(st,atkCards,defCards){
   const aSide=st.possession, dSide=opp(aSide);
   const A=st.beasts[aSide], D=st.beasts[dSide];
   const sup=atkCards.filter(c=>c.type==="support");
@@ -207,19 +217,20 @@ function resolveContest(st,atkCards,defCards){
   const stealVal  =tackle.reduce((s,c)=>s+(c.steal||0),0)+dImp.reduce((s,c)=>s+(c.steal||0),0)+press.reduce((s,c)=>s+(c.steal||0),0)+D.TEC*0.3;
   const rawImpToD =aImp.reduce((s,c)=>s+(c.sta||0),0)+((fin&&fin.impact)?IMPACT_DMG:0);
   const rawImpToA =dImp.reduce((s,c)=>s+(c.sta||0),0);
-  let outcome,newPos=st.pos,newPoss=aSide,impToD=0,impToA=0;
-  if(stealVal>controlVal+2){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; st.momentum[aSide]=0; }
-  else if(fin){
-    const target=Math.max(0,guardVal-(fin.pierce||0));
-    const shotVal=fin.shot+shotBonus+A.ATK*0.5+mom;
-    outcome= shotVal>=target?"GOAL":"MISS";
-    impToD=rawImpToD; newPoss=dSide; newPos=kickoffPos(dSide); st.momentum[aSide]=0;
-  } else {
-    if(advanceVal>=ADV_TH){ const step=(advanceVal-ADV_TH>=BIGSTEP)?2:1;
-      newPos=zoneAdvance(aSide,st.pos,step); outcome="ADVANCE"; impToD=rawImpToD;
-      st.momentum[aSide]=Math.min(MOMCAP,mom+1);
-    } else { outcome="STUFF"; st.momentum[aSide]=Math.max(0,mom-1); }
-  }
+  const target=fin?Math.max(0,guardVal-(fin.pierce||0)):0;
+  const shotVal=fin?fin.shot+shotBonus+A.ATK*0.5+mom:0;
+  let outcome,newPos=st.pos,newPoss=aSide,impToD=0,impToA=0,newMom=mom;
+  if(stealVal>controlVal+2){ outcome="TURNOVER"; newPoss=dSide; impToA=rawImpToA; newMom=0; }
+  else if(fin){ outcome= shotVal>=target?"GOAL":"MISS"; impToD=rawImpToD; newPoss=dSide; newPos=kickoffPos(dSide); newMom=0; }
+  else { if(advanceVal>=ADV_TH){ const step=(advanceVal-ADV_TH>=BIGSTEP)?2:1; newPos=zoneAdvance(aSide,st.pos,step); outcome="ADVANCE"; impToD=rawImpToD; newMom=Math.min(MOMCAP,mom+1); }
+    else { outcome="STUFF"; newMom=Math.max(0,mom-1); } }
+  return {aSide,dSide,outcome,newPos,newPoss,newMom,impToD,impToA,
+    advanceVal,controlVal,shotVal,target,stealVal,guardVal,inZone,hasFin:!!fin,fin};
+}
+function resolveContest(st,atkCards,defCards){
+  const e=evalPlay(st,atkCards,defCards);
+  const {aSide,dSide,outcome,newPos,newPoss,impToD,impToA}=e;
+  st.momentum[aSide]=e.newMom;
   const staD={home:0,away:0}; staD[dSide]-=impToD; staD[aSide]-=impToA;
   if(outcome==="GOAL") staD[dSide]-=2;
   const r={goalHome:0,goalAway:0,staHome:staD.home,staAway:staD.away,possession:newPoss,pos:newPos,type:"",outcome};
@@ -254,6 +265,7 @@ let G=null;
 const FW=660, FH=400, BX=30, BY=20;
 const GOAL_L=BX, GOAL_R=FW-BX, GMY1=FH/2-46, GMY2=FH/2+46, NETD=22;
 const ZX=[FW*0.22, FW*0.41, FW*0.59, FW*0.78];
+const HOME_COL="#3f86ad", AWAY_COL="#e07a3a";   // uniforme por LADO (casa azul · visitante laranja) — a fera é identificada pela crista
 
 function beginMatch(home,away,decks,onEnd){
   const st=freshState({...home},{...away});
@@ -287,14 +299,17 @@ function setupPlayers(){
 function nextTurn(){
   if(G.st.over)return;
   G.busy=true; G.play=[]; renderHud();
-  banner(()=>{ G.hand=drawHand(G.st.possession==="home"?G.decks.pAtk:G.decks.pDef); G.busy=false; renderHandArea(); });
+  banner(()=>{ const atk=G.st.possession==="home";
+    G.hand=drawHand(atk?G.decks.pAtk:G.decks.pDef);
+    G.enemyPlay=aiPick(drawHand(atk?G.decks.oDef:G.decks.oAtk),atk?"def":"atk",G.st,"away"); // intenção travada (telegrafada)
+    G.busy=false; renderHandArea(); });
 }
 function executePlay(){
   if(G.busy||G.st.over)return;
   if(G.play.length===0){ toast("Jogue ao menos uma carta"); return; }
   G.busy=true;
   const atk=G.st.possession==="home";
-  const aiPlay=aiPick(drawHand(atk?G.decks.oDef:G.decks.oAtk),atk?"def":"atk",G.st,"away");
+  const aiPlay=G.enemyPlay||[];
   const atkCards=atk?G.play:aiPlay, defCards=atk?aiPlay:G.play;
   const oldPos=G.st.pos;
   const res=resolveContest(G.st,atkCards,defCards);
@@ -528,8 +543,8 @@ function drawPlayer(ctx,p){
   ctx.fillStyle="rgba(0,0,0,.28)";ctx.beginPath();ctx.ellipse(p.x,p.y+12,12,4,0,0,7);ctx.fill();
   const carrier=Math.hypot(p.x-G.ball.x,p.y-G.ball.y)<20;
   if(carrier){ctx.strokeStyle="#f5c451";ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,16,0,7);ctx.stroke();}
-  if(p.star){ drawStar(ctx,p.x,p.y,p.team==="home"?G.st.beasts.home:G.st.beasts.away,p.flinch>0); return; }
-  const col=p.team==="home"?"#3f86ad":"#b04646";
+  if(p.star){ drawStar(ctx,p.x,p.y,p.team,p.team==="home"?G.st.beasts.home.crest:G.st.beasts.away.crest,p.flinch>0); return; }
+  const col=p.team==="home"?HOME_COL:AWAY_COL;
   ctx.fillStyle=p.flinch>0?"#fff":col;ctx.beginPath();ctx.arc(p.x,p.y,11,0,7);ctx.fill();
   ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=1;ctx.stroke();
   ctx.fillStyle="#fff";ctx.font="bold 10px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
@@ -547,32 +562,34 @@ function drawBall(ctx){
   ctx.beginPath();for(let i=0;i<5;i++){const a=i/5*7;const r=3.3;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();
   ctx.restore();
 }
-function drawStar(ctx,cx,cy,beast,fl){ ctx.save();ctx.translate(cx,cy);
+function drawStar(ctx,cx,cy,team,crest,fl){ ctx.save();ctx.translate(cx,cy);
   ctx.fillStyle="rgba(0,0,0,.3)";ctx.beginPath();ctx.arc(0,3,16,0,7);ctx.fill();
-  ctx.fillStyle=fl?"#ffffff":beast.color;ctx.beginPath();ctx.arc(0,0,15,0,7);ctx.fill();
-  ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=fl?"#ffffff":(team==="home"?HOME_COL:AWAY_COL);ctx.beginPath();ctx.arc(0,0,15,0,7);ctx.fill();
+  ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.stroke();                 // estrela = mesmo uniforme do time (anel branco destaca)
   ctx.globalAlpha=fl?.55:1;ctx.font="19px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
-  ctx.fillText(beast.crest,0,1); ctx.restore(); }
+  ctx.fillText(crest,0,1); ctx.restore(); }
 
 /* ----------------------------- RENDER UI --------------------------------- */
 function renderMatch(){
   app.innerHTML=`<div class="screen">
     <div class="scoreboard">
-      <div class="team home"><div class="nm">${G.st.beasts.home.crest} ${shortName(G.st.beasts.home)}</div>
+      <div class="team home"><div class="nm"><span class="kit" style="background:${HOME_COL}"></span>${G.st.beasts.home.crest} ${shortName(G.st.beasts.home)} <span class="muted" style="font-weight:600;font-size:10px">(você)</span></div>
         <div class="stabar"><div id="staH" style="width:100%"></div></div>
         <div style="font-size:10px" class="muted">fôlego <span id="staHn">100</span></div></div>
       <div class="scoremid"><div class="sc"><span id="scH">0</span> <span class="muted">:</span> <span id="scA">0</span></div>
         <div class="turn" id="turnLbl">Turno 1 / ${TURNS}</div></div>
-      <div class="team away"><div class="nm">${shortName(G.st.beasts.away)} ${G.st.beasts.away.crest}</div>
+      <div class="team away"><div class="nm">${shortName(G.st.beasts.away)} ${G.st.beasts.away.crest}<span class="kit" style="background:${AWAY_COL};margin-left:5px;margin-right:0"></span></div>
         <div class="stabar"><div id="staA" style="width:100%;background:linear-gradient(90deg,#c0392b,#ff6b6b)"></div></div>
         <div style="font-size:10px;text-align:right" class="muted">fôlego <span id="staAn">100</span></div></div>
     </div>
     <div class="dir" id="dir"></div>
     <div class="zonebar" id="zonebar"></div>
     <canvas id="pitch" width="${FW}" height="${FH}"></canvas>
+    <div id="intent" class="intent"></div>
     <div class="card-ui">
       <div class="zonelabel"><span id="zoneTitle">Sua jogada</span><span id="zoneRule" class="muted"></span></div>
       <div class="playzone empty" id="playzone"></div>
+      <div id="predict" class="predict"></div>
       <div class="controls"><button class="btn primary full" id="exec">▶ Executar jogada</button>
         <button class="btn ghost" id="clearp">limpar</button></div>
       <div class="zonelabel" style="margin-top:8px"><span>Sua mão</span><span class="muted" id="handHint"></span></div>
@@ -629,6 +646,45 @@ function renderHandArea(){
     if(used)el.style.outline="2px solid var(--gold)";
     hd.appendChild(el);
   });
+  describeIntent(); describePredict();
+}
+function describeIntent(){
+  const el=$("#intent"); if(!el)return;
+  const enemy=G.enemyPlay; if(!enemy){el.innerHTML="";return;}
+  const atk=G.st.possession==="home", aN=shortName(G.st.beasts.away), aC=G.st.beasts.away.crest;
+  const icons=enemy.map(c=>`<span class="ic">${c.ic}</span>`).join("")||"—";
+  let plan;
+  if(atk){ const steal=enemy.reduce((s,c)=>s+(c.steal||0),0), guard=enemy.reduce((s,c)=>s+(c.guard||0),0);
+    plan = enemy.some(c=>c.steal)&&steal>=guard ? `vai tentar <b>ROUBAR</b> (desarme ${steal.toFixed(0)})`
+         : guard>0 ? `vai <b>GUARDAR</b> o gol (guarda ${guard.toFixed(0)})` : `vai te marcar`;
+  } else { const fin=enemy.find(c=>c.type==="finish"), inZ=inShootZone("away",G.st.pos);
+    const imp=enemy.filter(c=>c.type==="impact").reduce((s,c)=>s+(c.sta||0),0);
+    plan = (fin&&inZ) ? `vai <b>FINALIZAR</b> (chute ${evalPlay(G.st,enemy,[]).shotVal.toFixed(0)})` : `vai <b>AVANÇAR</b>`;
+    if(imp>0) plan+=` <span class="bad">+💥${imp}</span>`;
+  }
+  el.innerHTML=`<span class="kit" style="background:${AWAY_COL}"></span><span class="who">${aC} ${aN}</span> ${icons} — ${plan}`;
+}
+function describePredict(){
+  const el=$("#predict"); if(!el)return;
+  if(!G.enemyPlay){el.innerHTML="";return;}
+  const atk=G.st.possession==="home", enemy=G.enemyPlay;
+  const e=evalPlay(G.st, atk?G.play:enemy, atk?enemy:G.play);
+  let res,cls,chips=[];
+  if(atk){
+    res={GOAL:"⚽ GOL!",MISS:"🧤 Chute vai ser defendido",ADVANCE:"👟 Avança ao "+ZNAMES[e.newPos],STUFF:"🧱 Travado — sem avanço",TURNOVER:"✋ Você PERDE a bola!"}[e.outcome];
+    cls=e.outcome==="GOAL"?"gold":e.outcome==="ADVANCE"?"good":"warn";
+    const robbed=e.stealVal>e.controlVal+2;
+    chips.push(`<span class="chip">controle ${e.controlVal.toFixed(0)} × roubo ${e.stealVal.toFixed(0)} <span class="${robbed?'no':'ok'}">${robbed?'ROUBADO':'seguro'}</span></span>`);
+    if(e.hasFin) chips.push(`<span class="chip">chute ${e.shotVal.toFixed(0)} × guarda ${e.target.toFixed(0)} <span class="${e.shotVal>=e.target?'ok':'no'}">${e.shotVal>=e.target?'GOL':'defende'}</span></span>`);
+    else chips.push(`<span class="chip">avanço ${e.advanceVal.toFixed(0)} / ${ADV_TH} <span class="${e.advanceVal>=ADV_TH?'ok':'no'}">${e.advanceVal>=ADV_TH?'avança':'insuf.'}</span></span>`);
+  } else {
+    res={TURNOVER:"✋ Você ROUBA a bola!",GOAL:"😣 Você SOFRE GOL",MISS:"🧤 Você DEFENDE!",ADVANCE:"⚠️ Rival avança ao "+ZNAMES[e.newPos],STUFF:"🧱 Você segura o rival"}[e.outcome];
+    cls=(e.outcome==="TURNOVER"||e.outcome==="MISS")?"good":e.outcome==="GOAL"?"bad":"warn";
+    const robs=e.stealVal>e.controlVal+2;
+    chips.push(`<span class="chip">seu desarme ${e.stealVal.toFixed(0)} × controle ${e.controlVal.toFixed(0)} <span class="${robs?'ok':'no'}">${robs?'ROUBA':'não rouba'}</span></span>`);
+    if(e.hasFin) chips.push(`<span class="chip">sua guarda ${e.guardVal.toFixed(0)} × chute ${e.shotVal.toFixed(0)} <span class="${e.shotVal>=e.target?'no':'ok'}">${e.shotVal>=e.target?'SOFRE':'defende'}</span></span>`);
+  }
+  el.innerHTML=`<div class="res ${cls}">▶ ${res||"—"}</div>${chips.join("")}`;
 }
 function renderHud(){
   const st=G.st,set=(id,v)=>{const e=$("#"+id);if(e)e.textContent=v;};
