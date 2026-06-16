@@ -1,63 +1,64 @@
-# ⚔️⚽ World Cup Beasts — versão Godot 4
+# ⚔️⚽ World Cup Beasts — Godot 4
 
-Port do protótipo web (`../beasts.html`) para **Godot 4.x**. Mesma mecânica das
-**4 barras acumulativas** (Finalização / Controle / Desarme / Defesa) + energia,
-posse de bola, intenção do inimigo por ícone e Super Lance.
+Port do protótipo web (`../beasts.html`) para **Godot 4.x** (testado no 4.6.3), já
+com a **campanha roguelike completa** por cima do motor de partida.
 
 ## ▶️ Como abrir e rodar
 
 1. Abra o **Godot 4** (4.2 ou mais novo).
-2. Na janela inicial, clique em **Import** (Importar).
-3. Aponte para o arquivo **`godot/project.godot`** desta pasta e confirme.
-4. Com o projeto aberto, aperte **F5** (ou o ▶ no canto superior direito) para rodar.
-   - A cena principal já está configurada (`scenes/Main.tscn`).
+2. **Import** → aponte para **`godot/project.godot`** → confirme.
+3. Aperte **F5** (ou ▶ no canto superior direito). Cena principal: `scenes/Main.tscn`.
 
-## 🎮 Como jogar
+Linha de comando: `godot --path .` (roda) · `godot --path . -e` (editor).
 
-- Você é o **Couraça** (azul). Toque/clique nas **cartas** da mão para encher suas barras
-  (gasta **energia**, 3 por turno).
-- **Com a posse** (marcador "⚽ POSSE DE BOLA"): foque **Finalização** + **Controle**.
-- **Sem a posse**: foque **Desarme** + **Defesa**.
-- Aperte **▶ FIM DE TURNO** para o inimigo jogar e o turno resolver:
+## 🎮 Fluxo do jogo
+
+`Seleção de fera → Mapa (3 atos) → Partida / Evento / Relíquia / Loja → Vitória ou Derrota`
+
+- **Escolha sua fera** (Couraça, Górtax, Aurélio ou Mandíbula) — cada uma tem baralho e Super próprios.
+- No **mapa**, clique num nó iluminado pra avançar (bifurcações estilo Slay the Spire).
+- Na **partida**: clique nas **cartas** pra encher as 4 barras (gasta energia), depois **▶ FIM DE TURNO**.
   - Desarme > Controle do oponente → **rouba a bola**.
-  - Barra de Finalização cheia → **chute** (uma Defesa guardada bloqueia).
-  - Barra de Defesa cheia → **guarda** uma defesa (acumula).
-- Vence por **gols** (placar ao fim dos 15 turnos / morte súbita), **goleada (≥5)**
-  ou **nocaute de fôlego (KO)**.
+  - Finalização cheia → **chute** (uma Defesa guardada bloqueia).
+  - Defesa cheia → **guarda** uma defesa (acumula).
+  - Vence por **gols** (15 turnos / morte súbita), **goleada (≥5)** ou **nocaute de fôlego (KO)**.
+- Entre nós: **relíquias** (1 de 3), **eventos** narrativos, **loja**. ❤️ Repescagem = 1 vida extra/corrida.
 
 ## 🗂️ Estrutura
 
 ```
 godot/
-├── project.godot          # config do projeto (Godot 4)
-├── scenes/Main.tscn       # cena raiz (um Control com Main.gd)
+├── project.godot              # config (autoload GameState; janela 16:9)
+├── scenes/Main.tscn           # cena raiz (Control + Main.gd)
+├── assets/                    # arte pintada + fontes — ver assets/ASSETS.md
 └── scripts/
-    ├── Cards.gd           # definição das cartas + baralhos (class_name Cards)
-    ├── MatchEngine.gd     # MOTOR puro das 4 barras (class_name MatchEngine) — testável
-    └── Main.gd            # monta o HUD por código + conduz a partida
+    ├── GameState.gd           # AUTOLOAD: estado da corrida — feras, relíquias, eventos, geração de mapa
+    ├── MatchEngine.gd         # MOTOR puro das 4 barras (sem UI, determinístico, testável)
+    ├── Cards.gd               # cartas + baralhos
+    ├── Main.gd                # roteador de telas (por sinais)
+    ├── BeastSelectScreen.gd   # seleção de fera (4 opções)
+    ├── MapScreen.gd           # mapa roguelike (3 atos × colunas × raias)
+    ├── MatchScreen.gd         # HUD da partida (consome contexto do GameState)
+    ├── RelicScreen.gd         # escolha de relíquia (1 de 3)
+    ├── EventScreen.gd         # eventos narrativos
+    └── UIHelpers.gd           # cores e fábricas de widget reutilizáveis
 ```
 
-- **`MatchEngine.gd` é lógica pura** (sem nós/UI): é a tradução fiel do motor do
-  `beasts.html`. Dá pra testar/automatizar sem abrir tela.
-- **`Main.gd`** constrói toda a interface em código (sem precisar montar a árvore de
-  nós na mão) e desenha o tema "arena gótica" com `StyleBoxFlat`.
+- **`MatchEngine.gd` é lógica pura** — tradução fiel do motor do `beasts.html`, testável sem tela.
+- **Relíquias** entram no motor via `p_mods` (Dicionário) em `MatchEngine.begin()` — a lógica do motor fica pura.
+- A UI é montada **por código** (sem montar a árvore de nós na mão).
 
-## ⚠️ Sobre os ícones (emoji)
+## 🎨 Arte
 
-A fonte padrão do Godot **pode não desenhar emojis coloridos** (⚽🎯🛡️ podem aparecer
-como quadradinhos "tofu"). Isso **não afeta a jogabilidade**, só o visual. Para corrigir:
+Migrando de procedural (StyleBox + emoji) para **arte pintada gótica**. A lista completa de
+PNGs necessários está em **[`assets/ASSETS.md`](assets/ASSETS.md)**. Fontes Cinzel / Oswald /
+Barlow Condensed já em `assets/fonts/`. Faltando os PNGs, o código cai em placeholder.
 
-1. Baixe uma fonte com emoji (ex.: **Noto Emoji** — a versão *monocromática*
-   `NotoEmoji-Regular.ttf` funciona melhor no Godot que a colorida).
-2. Coloque o `.ttf` em `godot/` (ex.: `fonts/NotoEmoji-Regular.ttf`).
-3. **Project → Project Settings → General → GUI → Theme → Custom Font** e aponte para ela
-   (ou crie um `Theme` com `fallback`/`Default Font`).
+## 🧪 Testes (headless)
 
-Como alternativa rápida, dá pra trocar os emojis por texto/letras em `Cards.gd` e nos
-rótulos de `Main.gd`.
+```bash
+godot --headless --path . --script tests/test_engine.gd   # 300 partidas IA×IA: gols, win%, exceções
+godot --headless --path . --script tests/test_parse.gd    # parse de todos os scripts
+```
 
-## 🔜 Próximos passos (não incluídos neste scaffold)
-
-Este é o **núcleo jogável** (uma partida avulsa, Couraça x Górtax). Ainda **não** portei:
-relíquias, mapa roguelike de 3 atos, loja, eventos e seleção de fera — tudo isso já existe
-no `beasts.html` e pode ser portado por cima do `MatchEngine` quando você quiser.
+Última validação: **0 exceções**, ~55% de vitória do jogador no espelho (`diff=1.0`), todos os scripts com parse OK.

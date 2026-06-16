@@ -1,99 +1,114 @@
-# ⚽👑 Mundial dos Mitos — MVP
+# ⚔️⚽ World Cup Beasts
 
-> Um **autobattler roguelike de futebol mítico** com a estrutura e o gancho de uma Copa do Mundo, mas com identidade fantástica própria (sem problema de licença de seleções reais).
+> **Duelo de futebol por turnos + roguelike de deck-building**, num mundo gótico de feras onde tudo se decide numa partida (lógica Yu-Gi-Oh: "o duelo decide"). Você é uma fera-campeã que sobe numa gauntlet de 3 atos rumo ao título dos Imortais.
 
-Este é um **MVP de validação**: o objetivo é colocar o loop completo na sua mão em poucos minutos para você sentir se a ideia "gruda" — não é um jogo finalizado nem com arte final.
+O jogo está em **Godot 4** na pasta [`godot/`](godot/). O motor de partida é determinístico (sem dado na resolução — a variância vem do sorteio de cartas), então **builds funcionam de forma confiável**.
 
 ---
 
-## ▶️ Como jogar (zero instalação)
+## ▶️ Como rodar
 
-Abra o arquivo **`index.html`** em qualquer navegador (PC ou celular). Só isso — é um único arquivo, sem build, sem dependências, sem servidor.
+1. Abra o **Godot 4** (4.2+; testado no 4.6.3).
+2. **Import** → aponte para **`godot/project.godot`** → confirme.
+3. Aperte **F5** (ou ▶). A cena principal já está configurada (`scenes/Main.tscn`).
+
+Pela linha de comando:
+```bash
+godot --path godot            # roda direto
+godot --path godot -e         # abre o editor
+```
+
+---
+
+## 🎮 O loop de jogo
+
+1. **Escolha sua fera** (4 jogáveis, cada uma com baralho e Super Lance próprios):
+   - 🛡 **Couraça** (tatu) — Tanque · *Casco Imortal*
+   - 🐂 **Górtax** (minotauro) — Artilheiro · *Bicuda Imortal*
+   - 🦅 **Aurélio** (falcão) — Maestro/controle · *Voo Rasante*
+   - 🐊 **Mandíbula** (jacaré) — Impacto/fôlego · *Mordida Selvagem*
+
+2. **Suba no mapa roguelike** (estilo Slay the Spire): **3 atos**, cada um com colunas e bifurcações. Nós de ⚽ partida · 💀 elite · ❓ evento · 🎁 baú de relíquia (garantido) · 🛒 loja · 👑 chefe do ato.
+
+3. **Vença os duelos** (a mecânica-coração — ver abaixo), ganhe 🪙 ouro, escolha **relíquias** (1 de 3), enfrente **eventos** narrativos e use a **loja** entre partidas.
+
+4. **Repescagem** (❤️): 1 vida extra por corrida salva uma derrota fora de elite/chefe.
+
+---
+
+## ⭐ A mecânica-coração — as 4 BARRAS
+
+Cada fera tem 4 barras que **acumulam entre turnos**:
+
+1. **🎯 Finalização** — quando enche, **chuta ao gol** (zera ao disparar). O máximo escala com a dificuldade do inimigo.
+2. **⚽ Controle de bola** — precisa ficar **> Desarme do oponente**, senão você **perde a posse**.
+3. **🦵 Desarme** — se ficar **estritamente > Controle do inimigo**, você **rouba a bola**.
+4. **🛡️ Defesa** — quando enche, **guarda uma defesa** que bloqueia o próximo chute (acumula).
+
+- **Posse de bola:** com a bola, foque Finalização + Controle; sem ela, Desarme + Defesa.
+- **Energia + cartas:** ~3 de energia/turno; cada carta custa energia e enche barras. Cartas de impacto drenam **fôlego** (vida) do oponente.
+- **Super Lance:** uma barra de Fúria carrega ao longo da partida e libera o golpe-assinatura da fera.
+- **Intenção do inimigo:** telegrafada por ícone (estilo Slay the Spire).
+
+### Condições de vitória (3)
+- **Placar** ao fim dos **15 turnos** (empate → morte súbita).
+- **Goleada** de **≥5 gols** a qualquer momento.
+- **Nocaute** por **fôlego (STA) zerado** — vale inclusive na morte súbita.
+
+---
+
+## 🗂️ Estrutura
 
 ```
-# duplo-clique no index.html, ou:
-open index.html        # macOS
-xdg-open index.html    # Linux
-start index.html       # Windows
+football-autobattler/
+├── README.md            ← este arquivo
+├── ROADMAP.md           ← histórico de design + estado atual
+├── beasts.html          ← protótipo web do duelo de cartas (LEGADO — fonte do port)
+├── index.html           ← jogo de física antigo "Mundial dos Mitos" (LEGADO/arquivado)
+└── godot/               ← O JOGO ATUAL (Godot 4)
+    ├── project.godot
+    ├── scenes/Main.tscn
+    ├── assets/          ← arte pintada (ver assets/ASSETS.md) + fontes
+    ├── scripts/
+    │   ├── GameState.gd        # autoload: estado da corrida (feras, relíquias, eventos, mapa)
+    │   ├── MatchEngine.gd      # MOTOR puro das 4 barras (determinístico, testável)
+    │   ├── Cards.gd            # definição das cartas + baralhos
+    │   ├── Main.gd             # roteador de telas (por sinais)
+    │   ├── BeastSelectScreen.gd / MapScreen.gd / MatchScreen.gd
+    │   ├── RelicScreen.gd / EventScreen.gd
+    │   └── UIHelpers.gd        # cores e widgets reutilizáveis
+    └── tests/
+        ├── test_engine.gd      # 300 partidas IA×IA headless (gols, win%, exceções)
+        └── test_parse.gd       # verifica parse de todos os scripts
+```
+
+`MatchEngine.gd` é **lógica pura** (sem nós/UI) — dá pra testar sem abrir tela.
+
+---
+
+## 🎨 Arte (em andamento)
+
+O jogo está migrando da arte procedural (StyleBox + emoji) para **arte pintada gótica idêntica ao mock de referência**. A lista completa de imagens necessárias (nome, tamanho, descrição) está em **[`godot/assets/ASSETS.md`](godot/assets/ASSETS.md)**. Fontes (Cinzel / Oswald / Barlow Condensed) já incluídas. Enquanto os PNGs não chegam, o código usa placeholders e não quebra.
+
+---
+
+## ⚖️ Validação (headless)
+
+Rodando `godot --headless --path godot --script tests/test_engine.gd`:
+
+- **0 exceções** em 300 partidas IA×IA.
+- Vitória do jogador **~55%** no espelho em `diff=1.0`; **~15–18%** em `diff=1.3` (a barra do jogador cresce com a dificuldade do inimigo).
+- Curva da campanha: partida do Ato I `diff≈0.80`, elite `+0.12`, chefe final `≈1.32`.
+
+---
+
+## 🧪 Testes
+
+```bash
+godot --headless --path godot --script tests/test_engine.gd   # balanceamento
+godot --headless --path godot --script tests/test_parse.gd    # parse de todos os scripts
 ```
 
 ---
 
-## 🎮 O que tem no MVP (o loop completo)
-
-1. **Escolha sua Seleção Imortal** — 4 nações fictícias, cada uma com identidade, elenco inicial e **tática-assinatura** próprios:
-   - ☀️ **Reino do Sol Eterno** — agressivo; ganha ataque permanente a cada gol marcado.
-   - 🌫️ **República das Brumas** — controle/ilusão; rouba a posse de bola.
-   - 🔱 **Confederação das Profundezas** — defensivo; vence por desgaste (regenera fôlego).
-   - ⚡ **Clã das Tormentas** — velocidade/caos; contra-ataques relâmpago.
-
-2. **Suba na Copa** — bracket completo: **Fase de Grupos (3 jogos) → Oitavas → Quartas → Semi → A FINAL (chefe)**. No mata-mata, derrota encerra a corrida; empate vai para os **pênaltis**.
-
-3. **Entre as partidas (camada roguelike)** — gaste 🪙 *Ouro Místico* no **Mercado de Transferências**:
-   - **Jogadores místicos** (recrutamento) com raridades Comum/Raro/Lendário.
-   - **Táticas Ancestrais** (relíquias) — bônus permanentes (ex.: +ataque global, +velocidade, goleiro reforçado, energia mais rápida…).
-   - **Escalação**: elenco reduzido — você escolhe **5 titulares**, cada um uma unidade com peso real.
-
-4. **A partida ao vivo, com FÍSICA 2D** (canvas) — campo renderizado em tempo real, jogadores como unidades com **anel de fôlego (vida)** em volta, e a **bola como projétil de verdade** (velocidade, atrito, quique, knockback). A física roda sozinha (*autobattler assistível*); você intervém nos momentos-chave gastando energia. Controles de velocidade (1×/2×/3×), pausa e "simular".
-
-### ⭐ As mecânicas-coração da v0.2: física + stamina como vida
-- **A bola é uma arma.** Um chute não é "gol ou defesa" binário — é um projétil que viaja pelo campo e pode **acertar jogadores no caminho**.
-- **Fôlego = vida.** Cada jogador tem fôlego que cai com o tempo **e ao ser atingido pela bola**. Quem zera **cai (atordoado)** e seu time joga **com um a menos** por alguns segundos — pressão espacial, não só um número menor.
-- **🎯 Chute de Poder** (intervenção principal) — você designa seu artilheiro; ele **carrega** (telégrafo visual com aura) e solta um chute devastador, com **rastro, hitstop e screen-shake**, que arranca muito fôlego de quem for atingido.
-- **VFX por nação/arquétipo** — o mesmo evento de física vira fogo ☄️, raio ⚡ ou névoa 🌀.
-- **Builds e counters de fôlego** — times que vencem por impacto (canhão) vs. muralhas que absorvem vs. drenagem; e inimigos/chefes podem **mirar a sua peça-chave** (ex.: derrubar seu Meia Ancião) — você tem que **protegê-la** ou usar **💚 Reforço de Fôlego** para reanimar.
-
-### Arquétipos com mecânicas próprias (não são só números)
-- 🔥 **Centroavante de Fogo** — cada gol aumenta o *calor* do campo, queimando o fôlego dos **dois** times.
-- 🧊 **Goleira de Cristal** — defende quase tudo, mas **trinca** a cada defesa e perde fôlego se sobrecarregada.
-- 🧙 **Meia Ancião** — fraco fisicamente, mas dita o ritmo e **potencializa o controle** dos companheiros.
-- ⚡ **Lâmina Veloz**, 🗿 **Muralha Ancestral**, 🎴 **Maestro das Brumas** e outros, cada um com um efeito.
-
----
-
-## ✅ O que validar com este protótipo
-
-Jogue 2–3 corridas e observe:
-
-- **A decisão entre rodadas é interessante?** (comprar jogador X vs relíquia Y, quem escalar). É aqui que mora o jogo.
-- **A partida é uma "recompensa visual" satisfatória** de assistir e intervir, ou é passiva demais?
-- **Ativar a tática no momento certo dá sensação de impacto?**
-- **As identidades das nações criam estilos de jogo realmente diferentes?**
-- **A progressão (snowball) é gostosa** — dá pra sentir o time ficando mais forte?
-
----
-
-## ⚖️ Sobre o balanceamento
-
-O motor de física foi testado de forma automatizada (~500 partidas simuladas em modo headless, **0 erros**, média de ~2,5 gols/partida, ~3 jogadores derrubados por partida):
-
-| Perfil de jogo | Taxa de título (corrida inteira) |
-|---|---|
-| Sem comprar nada e sem usar táticas | **~12%** |
-| Comprando reforços/relíquias + usando táticas | **~35%** |
-
-Ou seja: **jogar bem ~triplica sua chance de ser campeão** — a build e o timing das táticas/chutes de poder decidem. É o contraste que mostra que a camada estratégica tem peso (o coração do gênero).
-
----
-
-## ✂️ O que foi cortado de propósito (é MVP)
-
-- Arte final (jogadores são discos com anel de fôlego; VFX são partículas simples de canvas).
-- Áudio (o impacto pede som — é um próximo passo óbvio para o "suco").
-- Sistema de save/persistência entre sessões.
-- Progressão meta entre corridas (desbloqueios, novas nações).
-- Eventos roguelike mais ricos (escolhas narrativas, mutadores).
-- Mira manual do chute (hoje você *comanda* o chute de poder; o jogador mira automático).
-- Balanceamento fino por nação (todas jogáveis, não milimetricamente equilibradas).
-
-## 🚀 Próximos passos naturais (se a ideia validar)
-
-1. **Som + mais juice** no impacto (o feel da física dobra com áudio e câmera).
-2. Mira/timing manual do chute de poder para quem quiser mais skill (modo "ação").
-3. Pool maior de jogadores, relíquias e **sinergias**; arquétipos e chefes que atacam o fôlego.
-4. Eventos roguelike entre fases (não só a loja).
-5. Polimento visual + o **evento sazonal de lançamento** durante a Copa real.
-
----
-
-*Tecnologia: HTML + CSS + JavaScript puro (vanilla), tudo em um único arquivo `index.html`. Escolhido para máxima portabilidade — abre em qualquer lugar, inclusive no celular, sem fricção de validação.*
+*Histórico de design (slot machine descartado → cartas → port pra Godot) em [`ROADMAP.md`](ROADMAP.md).*

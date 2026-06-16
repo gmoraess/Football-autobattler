@@ -4,6 +4,9 @@
 >
 > Dividido em **2 partes** porque são mudanças grandes. **Parte 1 = provar a mecânica do slot.** **Parte 2 = mundo, mascotes, builds e integração no roguelike completo.**
 
+> ### 📍 ESTADO ATUAL (jun/2026)
+> O slot foi **descartado** (resolvedor = **cartas**), e o jogo foi **portado do `beasts.html` para Godot 4** (pasta `godot/`). Tudo que era "Parte 2/2+" (4 feras, mapa roguelike de 3 atos, relíquias, eventos, loja, super lance, repescagem) **já está jogável no port**. A frente de trabalho atual é a **Parte 3 — arte pintada idêntica ao mock** (ver §7). O `beasts.html` e o `index.html` ficam como **legado/referência**.
+
 ---
 
 ## ⭐ REDESIGN ATUAL — Mecânica das 4 BARRAS (substitui o slot e as fases)
@@ -165,6 +168,18 @@ Após pesquisa do gênero (Slay the Spire, Monster Train, Balatro / futebol arca
 5. ✅ **Eventos** (escolhas narrativas com risco/recompensa).
 6. ✅ **Vida extra (❤️ repescagem):** 1 por corrida — salva 1 derrota fora do mata-mata; o que torna a gauntlet de 3 atos justa.
 7. ✅ **Balanceamento (sim. headless):** campeão **21/21/21/22%** por fera (parelho); deck comum mantém paridade; relíquias/super buffam o jogador, vida extra equilibra a duração. **0 exceções** em ~60k campanhas + smoke de todas as telas/fluxo.
+
+---
+
+## 5c. PARTE 3 — Port para Godot 4 + Arte pintada 🔄 EM ANDAMENTO
+
+Saída do `beasts.html` (web) para um projeto **Godot 4** (`godot/`), com a campanha inteira recriada por cima de um motor puro e testável.
+
+1. ✅ **Motor portado:** `MatchEngine.gd` — lógica pura das 4 barras, sem UI, determinística. Validado headless (`tests/test_engine.gd`): **0 exceções** em 300 partidas IA×IA, ~55% de vitória do jogador no espelho (`diff=1.0`).
+2. ✅ **Campanha recriada em Godot:** `GameState.gd` (autoload) com 4 feras, 11 relíquias, 5 eventos e gerador de mapa de 3 atos; telas `BeastSelect / Map / Match / Relic / Event` roteadas por sinais em `Main.gd`. Relíquias entram no motor via `p_mods` (Dicionário), mantendo o motor puro.
+3. ✅ **Estrutura sem `.tscn` manual:** UI montada por código (`UIHelpers.gd` centraliza cores e widgets). Parse de todos os scripts verificado (`tests/test_parse.gd`).
+4. 🔄 **Arte idêntica ao mock (Parte 3 atual):** substituir o procedural (StyleBox + emoji) por **arte pintada gótica** — fundo de arena, feras/inimigos/chefes, ilustrações de carta, ícones e molduras. Manifesto completo de PNGs em **`godot/assets/ASSETS.md`**; fontes (Cinzel/Oswald/Barlow) já incluídas; layout da partida sendo reconstruído pra bater pixel-a-pixel com a referência.
+5. ⏳ **Pendências:** loja completa (hoje é stub que dá ouro + carta), efeito do Talismã de Ouro no `complete_node()`, e integração dos assets conforme chegam.
 
 ---
 
