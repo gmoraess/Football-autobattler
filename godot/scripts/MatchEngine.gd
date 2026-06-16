@@ -1,6 +1,8 @@
 class_name MatchEngine
 extends RefCounted
 ## Motor da partida — 4 BARRAS + ENERGIA. Lógica pura (sem UI), portada de beasts.html.
+
+const Cards = preload("res://scripts/Cards.gd")
 ## Barras por personagem: F=Finalização, C=Controle, D=Desarme, E=Defesa.
 ## Acumulam entre turnos. F/E disparam ao encher (e zeram); C e D são comparados.
 
@@ -50,9 +52,14 @@ var super_name := ""
 var super_armed := ""
 var enemy_plan := {"cards":[], "icon":""}
 var logs: Array = []
+# modificadores de relíquias (aplicados em begin via p_mods)
+var relic_gol_drain := 0
+var relic_fury_gain := 22
+var relic_home_roubo_fin := 0
+var relic_hand_size := 5
 
 # --------------------------------------------------------------------------
-func begin(p_home: Dictionary, p_away: Dictionary, p_deck: Array, p_odeck: Array, p_diff: float) -> void:
+func begin(p_home: Dictionary, p_away: Dictionary, p_deck: Array, p_odeck: Array, p_diff: float, p_mods: Dictionary = {}) -> void:
 	home = p_home
 	away = p_away
 	diff = p_diff
@@ -87,6 +94,19 @@ func begin(p_home: Dictionary, p_away: Dictionary, p_deck: Array, p_odeck: Array
 	super_name = home.get("super", "")
 	super_armed = ""
 	logs = []
+	# --- aplicar modificadores de relíquias ---
+	relic_gol_drain       = p_mods.get("gol_sta_drain", 0)
+	relic_fury_gain       = roundi(22.0 * p_mods.get("fury_gain_mult", 1.0))
+	relic_home_roubo_fin  = p_mods.get("roubo_fin_bonus", 0)
+	relic_hand_size       = p_mods.get("hand_size", 5)
+	sta_max["home"]       = clampi(STA_MAX + p_mods.get("sta_bonus", 0), 1, 200)
+	sta["home"]           = sta_max["home"]
+	saves["home"]        += p_mods.get("starting_saves", 0)
+	bar_max["home"]["F"]  = maxi(2, bar_max["home"]["F"] - p_mods.get("fin_bar_reduction", 0))
+	bar_max["home"]["E"]  = maxi(1, bar_max["home"]["E"] - p_mods.get("def_bar_reduction", 0))
+	energy_max           += p_mods.get("energy_bonus", 0)
+	energy                = energy_max
+	bars["home"]["C"]     = mini(CD_CAP, p_mods.get("ctrl_bonus", 0))
 	_log("🏟️ %s x %s · %d turnos" % [_nm("home"), _nm("away"), TURNS])
 	start_turn()
 
@@ -95,7 +115,7 @@ func start_turn() -> void:
 	busy = false
 	energy = energy_max
 	discard.append_array(hand)
-	hand = _draw_n(5)
+	hand = _draw_n(relic_hand_size)
 	enemy_plan = _ai_plan()
 
 func play_card(idx: int) -> bool:
@@ -205,7 +225,7 @@ func _ai_plan() -> Dictionary:
 		if tot[k] > bv:
 			bv = tot[k]
 			best = k
-	var will_shoot := has_ball and (bars["away"]["F"] + tot["F"] >= bar_max["away"]["F"])
+	var will_shoot: bool = has_ball and (bars["away"]["F"] + tot["F"] >= bar_max["away"]["F"])
 	var icon: String = "🥅" if will_shoot else {"F":"🎯","C":"⚽","D":"🦵","E":"🛡️"}[best]
 	return {"cards": chosen, "icon": icon}
 
@@ -219,6 +239,8 @@ func _resolve_turn() -> void:
 		possession = d0
 		bars[poss]["C"] = 0
 		bars[d0]["D"] = 0
+		if d0 == "home":
+			bars["home"]["F"] = mini(FMAXCAP, bars["home"]["F"] + relic_home_roubo_fin)
 		_log("✋ %s ROUBOU a bola!" % _nm(d0))
 	var p := possession
 	var d := _opp(p)
@@ -232,7 +254,8 @@ func _resolve_turn() -> void:
 			score[p] += 1
 			if p == "home": goal_h = true
 			else: goal_a = true
-			sta[d] = clampi(sta[d] - 3, 0, sta_max[d])
+			var gol_dmg: int = 3 + (relic_gol_drain if p == "home" else 0)
+			sta[d] = clampi(sta[d] - gol_dmg, 0, sta_max[d])
 			_log("⚽ GOOOL de %s! %d x %d" % [_nm(p), score["home"], score["away"]])
 	# 3) DEFESA: barra cheia -> guarda um chute (acumula)
 	for s in ["home", "away"]:
@@ -242,7 +265,7 @@ func _resolve_turn() -> void:
 	# 4) fôlego + fúria + fim
 	sta["home"] = clampi(sta["home"] - FATIGUE, 0, sta_max["home"])
 	sta["away"] = clampi(sta["away"] - FATIGUE, 0, sta_max["away"])
-	fury = mini(100, fury + 22)
+	fury = mini(100, fury + relic_fury_gain)
 	turn += 1
 	_check_end()
 

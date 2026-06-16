@@ -17,6 +17,10 @@ window/size/viewport_height=1280
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 
+[autoload]
+
+GameState="*res://scripts/GameState.gd"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
