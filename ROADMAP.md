@@ -6,6 +6,40 @@
 
 ---
 
+## ⭐ REDESIGN ATUAL — Mecânica das 4 BARRAS (substitui o slot e as fases)
+
+> As seções abaixo (slot machine, fases de ataque/defesa, 9 turnos, divisão do campo em 4 zonas) ficam como **histórico**. O modelo vigente é o de **4 barras acumulativas por personagem**, descrito aqui. Dividido em 2 partes:
+> **Parte 1 (FEITA) = motor + HUD funcional.** **Parte 2 = fidelidade visual pixel-art ao mock (arena gótica, retratos, molduras).**
+
+### As 4 barras (por personagem, acumulam entre turnos)
+1. **🎯 Finalização** — quando **enche, chuta ao gol**. O máximo escala com a **dificuldade do inimigo** (inimigo fácil enche rápido, ex. 0/7; elite/chefe exige bem mais). Zera ao disparar.
+2. **⚽ Controle de bola** — precisa **permanecer maior que o Desarme do oponente**, senão você **perde a bola** (e não finaliza mesmo com a barra de finalização cheia).
+3. **🦵 Desarme** — precisa ser **maior que o Controle do inimigo** para **roubar** a posse (empate = não rouba; estritamente maior).
+4. **🛡️ Defesa** — quando **enche, guarda uma defesa** que bloqueia o próximo chute. **Acumula** (encher 2× = 2 chutes defendidos).
+
+### Posse de bola (sem mais "fases")
+- Não há mais fase de ataque/defesa nem divisão do campo em zonas. Apenas um marcador **"⚽ POSSE DE BOLA"** acima de quem tem a bola.
+- **Com a bola:** destacam **Finalização + Controle**. **Sem a bola:** destacam **Desarme + Defesa**.
+
+### Energia + cartas
+- **3 de energia por turno.** Cada carta tem **custo** e enche barras (ex.: Passe ⚽+2 custo 1; Finalização 🎯+4 custo 2; Carrinho 🦵+2 custo 1 + tira fôlego; Defesa 🛡️+3 custo 1).
+- Cartas de impacto (`sta`) drenam o **fôlego** do oponente (fôlego = vida; zerou = KO).
+
+### Intenção do inimigo (estilo Slay the Spire)
+- Mostrada **só por ícone acima da cabeça do adversário** (🎯/⚽/🦵/🛡️, ou 🥅 quando o chute é iminente). Sem números.
+
+### Resolução do turno (ordem)
+1. **Roubo:** se `Desarme(sem-bola) > Controle(com-bola)` → vira a posse (zera os dois).
+2. **Finalização:** se a barra do possuidor encheu → chute; se o defensor tem defesa guardada, bloqueia; senão **GOL** (zera a barra).
+3. **Defesa:** cada lado com a barra cheia ganha **+1 defesa guardada** (zera a barra).
+4. **Fôlego** cai (fadiga); fim por **KO**, **goleada (≥5)**, **placar no tempo** ou **morte súbita**.
+
+### Balanceamento (validação headless, 300–400 partidas, diff=1)
+- **0 exceções**; **~1,9 gol/partida**; **~18 turnos** de média; vitória do jogador **~52–58%** no espelho (decidida por gols, não só por KO).
+- Knob de dificuldade testado: diff 1.0 ≈ 58% · 1.3 ≈ 19% · 1.6 ≈ 4% (barra do jogador cresce com a dificuldade do inimigo). Curva da campanha suavizada: partida ato I `diff 0.80`, elite `+0.12`, chefe final `≈1.32`.
+
+---
+
 ## 0. Visão (o "elevator pitch")
 
 **World Cup Beasts.** Num mundo onde nações de feras resolvem tudo — guerras, tronos, honra — em **embates de futebol** (lógica Yu-Gi-Oh: "o duelo decide"), você é a **fera-tatu blindada**, um campeão convocado para a Copa. Cada partida é um **duelo por turnos**: você escolhe uma ação e gira a **máquina de slot**, que decide o destino do lance. Stamina é vida: a bola é uma arma e quem fica sem fôlego cai.
