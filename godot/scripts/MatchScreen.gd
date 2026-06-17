@@ -486,8 +486,8 @@ func _bottom() -> Control:
 	if gr != null: icons.add_child(gr)
 	if icons.get_child_count() > 0:
 		right.add_child(icons)
-	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 16)
-	endb.custom_minimum_size = Vector2(200, 66)
+	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 15)
+	endb.custom_minimum_size = Vector2(210, 79)   # ~proporção 256x96 da textura
 	endb.pressed.connect(_on_end_turn)
 	if not _has_affordable_card():
 		_pulse(endb)        # brilha quando não há mais o que fazer

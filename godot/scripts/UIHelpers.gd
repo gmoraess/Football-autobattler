@@ -81,9 +81,12 @@ static func ornate_btn(txt: String, fsize: int = 16) -> Button:
 static func _btn_tex(t: Texture2D, mod: Color) -> StyleBoxTexture:
 	var s := StyleBoxTexture.new()
 	s.texture = t
-	s.set_texture_margin_all(30)
-	s.content_margin_left = 18; s.content_margin_right = 18
-	s.content_margin_top = 12; s.content_margin_bottom = 14
+	# SEM 9-slice: a textura tem ornamentos no centro do topo/base que
+	# borrariam se o miolo fosse esticado. Escala a textura inteira (botão
+	# deve manter ~proporção 256x96) e só usa content_margin pro texto.
+	s.set_texture_margin_all(0)
+	s.content_margin_left = 22; s.content_margin_right = 22
+	s.content_margin_top = 14; s.content_margin_bottom = 16
 	s.modulate_color = mod
 	return s
 
