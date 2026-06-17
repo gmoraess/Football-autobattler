@@ -556,10 +556,9 @@ func _bottom() -> Control:
 	for i in engine.hand.size():
 		hand_h.add_child(_card(i))
 	h.add_child(hand_wrap)
-	# DIAGNÓSTICO: botão flat (sem textura) pra isolar o "blob branco".
-	var endb := UIHelpers.gold_btn("FIM DE TURNO")
-	endb.add_theme_font_size_override("font_size", 15)
-	endb.custom_minimum_size = Vector2(190, 58)
+	# botão ornamentado (button_gold via TextureRect filho — versão robusta)
+	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 16)
+	endb.custom_minimum_size = Vector2(208, 78)
 	endb.pressed.connect(_on_end_turn)
 	if not _has_affordable_card():
 		_pulse(endb)        # brilha quando não há mais o que fazer
