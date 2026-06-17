@@ -175,7 +175,8 @@ func _score_plate() -> Control:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 0)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 40, Color("f4eee2"))
+	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 46, Color("f4eee2"))
+	score_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(score_lbl)
 	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
 		_pop(score_lbl, 1.4)
@@ -552,8 +553,10 @@ func _bottom() -> Control:
 	for i in engine.hand.size():
 		hand_h.add_child(_card(i))
 	h.add_child(hand_wrap)
-	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 15)
-	endb.custom_minimum_size = Vector2(210, 79)
+	# DIAGNÓSTICO: botão flat (sem textura) pra isolar o "blob branco".
+	var endb := UIHelpers.gold_btn("FIM DE TURNO")
+	endb.add_theme_font_size_override("font_size", 15)
+	endb.custom_minimum_size = Vector2(190, 58)
 	endb.pressed.connect(_on_end_turn)
 	if not _has_affordable_card():
 		_pulse(endb)        # brilha quando não há mais o que fazer
