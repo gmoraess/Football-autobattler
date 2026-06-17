@@ -31,7 +31,7 @@ func _ready() -> void:
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(bg)
 		var shade := ColorRect.new()
-		shade.color = Color(0, 0, 0, 0.28)
+		shade.color = Color(0, 0, 0, 0.40)
 		shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(shade)
@@ -121,7 +121,7 @@ func _scoreboard() -> Control:
 	h.add_child(_team_head("home"))
 	var mid := VBoxContainer.new()
 	mid.alignment = BoxContainer.ALIGNMENT_CENTER
-	mid.custom_minimum_size = Vector2(170, 0)
+	mid.custom_minimum_size = Vector2(220, 0)
 	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 42, Color("f4eee2"))
 	mid.add_child(score_lbl)
 	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
@@ -294,10 +294,10 @@ func _bar(side: String, key: String, name: String, desc: String, active: bool) -
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 3); box.add_child(v)
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 7)
 	var icon_sq := _stat_icon_box(key)
-	var nl := UIHelpers.lbl(name, 11, UIHelpers.BAR_TXT[key])
+	var nl := UIHelpers.lbl(name, 13, UIHelpers.BAR_TXT[key])
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if mirror else HORIZONTAL_ALIGNMENT_LEFT
-	var val := UIHelpers.lbl("%d/%d" % [cur, mx], 9, UIHelpers.RUNE2)
+	var val := UIHelpers.lbl("%d/%d" % [cur, mx], 10, UIHelpers.RUNE2)
 	if mirror:
 		hd.add_child(val); hd.add_child(nl)
 		if icon_sq != null: hd.add_child(icon_sq)
@@ -366,45 +366,53 @@ func _beasts_center() -> Control:
 	return h
 
 func _beast_slot(side: String, beast: Dictionary, kit: Color, has_ball: bool, intent: String) -> Control:
-	var v := VBoxContainer.new()
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.alignment = BoxContainer.ALIGNMENT_END
-	var top := CenterContainer.new()
-	top.custom_minimum_size = Vector2(0, 64)
+	var root := Control.new()
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.custom_minimum_size = Vector2(0, 320)
+	root.clip_contents = false
+	# arte da fera — preenche o slot inteiro (grande), centralizada
+	var art := UIHelpers.beast_tex(beast.get("art", ""))
+	if art != null:
+		var spr := TextureRect.new()
+		spr.texture = art
+		spr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		spr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		spr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		spr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(spr)
+		_beast_node[side] = spr
+	else:
+		var p := PanelContainer.new()
+		p.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		p.custom_minimum_size = Vector2(150, 190)
+		p.add_theme_stylebox_override("panel", UIHelpers.sbf(kit, UIHelpers.BRONZE, 2, 16, 0, 0))
+		var pc := CenterContainer.new(); p.add_child(pc)
+		pc.add_child(UIHelpers.clbl(beast.get("crest", "?"), 64, Color.WHITE))
+		root.add_child(p)
+		_beast_node[side] = p
+	# marcador (posse / intenção) — overlay flutuante no topo, sem roubar espaço
+	var marker: Control = null
 	if has_ball:
 		var posse := UIHelpers.icon_tex("posse")
 		if posse != null:
 			var pr := TextureRect.new(); pr.texture = posse
-			pr.custom_minimum_size = Vector2(64, 62)
+			pr.custom_minimum_size = Vector2(72, 70)
 			pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			top.add_child(pr)
+			marker = pr
 		else:
-			top.add_child(_banner("⚽ POSSE DE BOLA"))
+			marker = _banner("⚽ POSSE DE BOLA")
 	elif intent != "":
-		top.add_child(_intent(intent))
-	v.add_child(top)
-	var art := UIHelpers.beast_tex(beast.get("art", ""))
-	if art != null:
-		var spr := UIHelpers.sprite(art)
-		spr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		spr.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		spr.custom_minimum_size = Vector2(0, 220)
-		v.add_child(spr)
-		_beast_node[side] = spr
-	else:
-		var cc := CenterContainer.new()
-		cc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		var p := PanelContainer.new()
-		p.custom_minimum_size = Vector2(120, 150)
-		p.add_theme_stylebox_override("panel", UIHelpers.sbf(kit, UIHelpers.BRONZE, 2, 14, 0, 0))
-		var pc := CenterContainer.new(); p.add_child(pc)
-		pc.add_child(UIHelpers.clbl(beast.get("crest", "?"), 56, Color.WHITE))
-		cc.add_child(p)
-		v.add_child(cc)
-		_beast_node[side] = p
-	return v
+		marker = _intent(intent)
+	if marker != null:
+		var mc := CenterContainer.new()
+		mc.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+		mc.offset_bottom = 72
+		mc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mc.add_child(marker)
+		root.add_child(mc)
+	return root
 
 func _banner(txt: String) -> Control:
 	var p := PanelContainer.new()
