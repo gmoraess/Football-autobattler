@@ -27,6 +27,7 @@ func _ready() -> void:
 		bg.texture = arena
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(bg)
@@ -486,6 +487,8 @@ func _beast_slot(side: String, beast: Dictionary, kit: Color, has_ball: bool, in
 		spr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		spr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		spr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		spr.material = UIHelpers.outline_material()   # contorno: destaca do fundo
 		spr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		root.add_child(spr)
 		_beast_node[side] = spr
@@ -628,6 +631,7 @@ func _card(idx: int) -> Control:
 		spr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		spr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		spr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		spr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		btn.add_child(spr)
 		var fr := UIHelpers.frame_tex("card_frame")

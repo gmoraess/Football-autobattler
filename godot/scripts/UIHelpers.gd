@@ -193,13 +193,27 @@ static func framed_t(ph: int = 10, pv: int = 9) -> PanelContainer:
 	return p
 
 ## TextureRect que preenche mantendo proporção (pra arte de fera/fundo).
+## Arte detalhada usa filtro LINEAR (suave) mesmo com o projeto em nearest.
 static func sprite(t: Texture2D, keep_aspect: bool = true) -> TextureRect:
 	var r := TextureRect.new()
 	r.texture = t
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if keep_aspect else TextureRect.STRETCH_SCALE
+	r.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return r
+
+## Material de contorno (carregado uma vez) — destaca a arte do fundo.
+static var _outline_mat: ShaderMaterial = null
+static func outline_material() -> ShaderMaterial:
+	if _outline_mat == null:
+		var path := "res://assets/shaders/outline.gdshader"
+		if ResourceLoader.exists(path):
+			var sh: Resource = load(path)
+			if sh is Shader:
+				_outline_mat = ShaderMaterial.new()
+				_outline_mat.shader = sh
+	return _outline_mat
 
 # ---- Fontes (carregadas uma vez) ----
 static var _f_title: FontFile = null
