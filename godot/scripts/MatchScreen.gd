@@ -122,7 +122,7 @@ func _scoreboard() -> Control:
 	var mid := VBoxContainer.new()
 	mid.alignment = BoxContainer.ALIGNMENT_CENTER
 	mid.custom_minimum_size = Vector2(170, 0)
-	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 34, UIHelpers.GOLD2)
+	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 42, Color("f4eee2"))
 	mid.add_child(score_lbl)
 	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
 		_pop(score_lbl, 1.5)
@@ -140,7 +140,7 @@ func _crest_rect() -> Control:
 		return null
 	var cr := TextureRect.new()
 	cr.texture = crest
-	cr.custom_minimum_size = Vector2(36, 30)
+	cr.custom_minimum_size = Vector2(54, 46)
 	cr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	cr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	return cr
@@ -148,10 +148,10 @@ func _crest_rect() -> Control:
 func _team_head(side: String) -> Control:
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var kit: Color = UIHelpers.HOME_KIT if side == "home" else UIHelpers.AWAY_KIT
+	v.add_theme_constant_override("separation", 4)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	var nl := UIHelpers.tlbl(engine._nm(side), 15, kit)
+	row.add_theme_constant_override("separation", 10)
+	var nl := UIHelpers.tlbl(engine._nm(side), 19, Color("f3ece0"))
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var cr := _crest_rect()
 	if side == "home":
@@ -163,32 +163,100 @@ func _team_head(side: String) -> Control:
 		row.add_child(nl)
 		if cr != null: row.add_child(cr)
 	v.add_child(row)
-	var frac: float = float(engine.sta[side]) / float(engine.sta_max[side])
-	v.add_child(UIHelpers.meter(frac, UIHelpers.STA_COL, "FÔLEGO %d/%d" % [engine.sta[side], engine.sta_max[side]], 200))
+	v.add_child(_sta_bar(side))
 	return v
+
+## Barra de fôlego com cor por lado (casa=teal, visitante=vermelho) + rótulo/valor.
+func _sta_bar(side: String) -> Control:
+	var col: Color = Color("3ec3c3") if side == "home" else Color("d8463a")
+	var frac: float = float(engine.sta[side]) / float(engine.sta_max[side])
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	var top := HBoxContainer.new()
+	var lab := UIHelpers.lbl("FÔLEGO", 9, col)
+	var num := UIHelpers.lbl("%d/%d" % [engine.sta[side], engine.sta_max[side]], 9, UIHelpers.RUNE)
+	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if side == "home":
+		top.add_child(lab); top.add_child(sp); top.add_child(num)
+	else:
+		top.add_child(num); top.add_child(sp); top.add_child(lab)
+	v.add_child(top)
+	var track := Control.new()
+	track.custom_minimum_size = Vector2(210, 11)
+	var bg := ColorRect.new(); bg.color = Color("1a0c0c")
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	track.add_child(bg)
+	var fill := ColorRect.new(); fill.color = col
+	fill.anchor_top = 0.0; fill.anchor_bottom = 1.0
+	if side == "home":
+		fill.anchor_left = 0.0; fill.anchor_right = frac
+	else:
+		fill.anchor_left = 1.0 - frac; fill.anchor_right = 1.0
+	track.add_child(fill)
+	v.add_child(track)
+	return v
+
+const MM_W := 168.0
+const MM_H := 64.0
 
 func _minimap() -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(150, 56)
+	c.custom_minimum_size = Vector2(MM_W, MM_H)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var field := ColorRect.new(); field.color = Color("236e34")
 	field.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.add_child(field)
-	var ml := ColorRect.new(); ml.color = Color(1, 1, 1, 0.35)
-	ml.position = Vector2(74, 3); ml.size = Vector2(1, 50); c.add_child(ml)
-	var hp := [[18, 28], [18, 50], [32, 39], [44, 28], [44, 50]]
-	var ap := [[56, 28], [56, 50], [68, 39], [82, 28], [82, 50]]
+	var line := Color(1, 1, 1, 0.4)
+	# linha central
+	_rect(c, Vector2(MM_W / 2 - 0.5, 3), Vector2(1, MM_H - 6), line)
+	# círculo central
+	var circ := Panel.new()
+	circ.size = Vector2(22, 22); circ.position = Vector2(MM_W / 2 - 11, MM_H / 2 - 11)
+	circ.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var csb := StyleBoxFlat.new(); csb.bg_color = Color(0, 0, 0, 0)
+	csb.border_color = line; csb.set_border_width_all(1); csb.set_corner_radius_all(11)
+	circ.add_theme_stylebox_override("panel", csb)
+	c.add_child(circ)
+	# áreas (penalty boxes) — contornos
+	_outline(c, Vector2(3, MM_H / 2 - 15), Vector2(18, 30), line)
+	_outline(c, Vector2(MM_W - 21, MM_H / 2 - 15), Vector2(18, 30), line)
+	# gols
+	_rect(c, Vector2(0, MM_H / 2 - 6), Vector2(3, 12), Color(1, 1, 1, 0.75))
+	_rect(c, Vector2(MM_W - 3, MM_H / 2 - 6), Vector2(3, 12), Color(1, 1, 1, 0.75))
+	# rótulos GK
+	var gk1 := UIHelpers.lbl("GK", 7, Color(1, 1, 1, 0.7)); gk1.position = Vector2(5, MM_H / 2 - 16); c.add_child(gk1)
+	var gk2 := UIHelpers.lbl("GK", 7, Color(1, 1, 1, 0.7)); gk2.position = Vector2(MM_W - 20, MM_H / 2 - 16); c.add_child(gk2)
+	# jogadores
+	var hp := [[20, 30], [20, 54], [36, 42], [48, 30], [48, 54]]
+	var ap := [[120, 30], [120, 54], [132, 42], [148, 30], [148, 54]]
 	for pos in hp: _dot(c, pos[0], pos[1], UIHelpers.HOME_KIT)
 	for pos in ap: _dot(c, pos[0], pos[1], UIHelpers.AWAY_KIT)
-	var bx: float = 38 if engine.possession == "home" else 62
+	# bola
+	var bx: float = MM_W * 0.34 if engine.possession == "home" else MM_W * 0.66
 	var ball := ColorRect.new(); ball.color = Color.WHITE
-	ball.size = Vector2(7, 7); ball.position = Vector2(bx / 100.0 * 150 - 3, 0.5 * 56 - 3)
+	ball.size = Vector2(7, 7); ball.position = Vector2(bx - 3, MM_H * 0.5 - 3)
+	ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.add_child(ball)
 	return c
 
+func _rect(parent: Control, pos: Vector2, size: Vector2, col: Color) -> void:
+	var r := ColorRect.new(); r.color = col; r.position = pos; r.size = size
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(r)
+
+func _outline(parent: Control, pos: Vector2, size: Vector2, col: Color) -> void:
+	var p := Panel.new(); p.position = pos; p.size = size
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = col; sb.set_border_width_all(1)
+	p.add_theme_stylebox_override("panel", sb)
+	parent.add_child(p)
+
 func _dot(parent: Control, xp: int, yp: int, col: Color) -> void:
 	var r := ColorRect.new(); r.color = col; r.size = Vector2(8, 8)
-	r.position = Vector2(float(xp) / 100.0 * 150 - 4, float(yp) / 100.0 * 56 - 4)
+	r.position = Vector2(float(xp) - 4, float(yp) - 4)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(r)
 
 # --- linha central: barras | feras | barras ---
@@ -218,23 +286,24 @@ func _bar(side: String, key: String, name: String, desc: String, active: bool) -
 	var frac: float = clampf(float(cur) / float(maxi(1, mx)), 0.0, 1.0)
 	var prev: float = _prev_bars[side][key]
 
+	var mirror := side == "away"
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel",
-		UIHelpers.sbt("panel", 28, 8, 6, UIHelpers.PANEL_B, UIHelpers.GOLD if active else Color("3c2b12")))
-	if not active: box.modulate = Color(1, 1, 1, 0.5)
+		UIHelpers.sbf(Color(0.05, 0.035, 0.02, 0.5), UIHelpers.GOLD if active else Color(0.42, 0.31, 0.14, 0.45), 1, 8, 9, 6))
+	if not active: box.modulate = Color(1, 1, 1, 0.62)
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 3); box.add_child(v)
-	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 6)
-	var ic := UIHelpers.icon_tex(STAT_ICON[key])
-	if ic != null:
-		var ir := TextureRect.new(); ir.texture = ic
-		ir.custom_minimum_size = Vector2(20, 20)
-		ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		hd.add_child(ir)
+	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 7)
+	var icon_sq := _stat_icon_box(key)
 	var nl := UIHelpers.lbl(name, 11, UIHelpers.BAR_TXT[key])
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hd.add_child(nl)
-	hd.add_child(UIHelpers.lbl("%d/%d" % [cur, mx], 9, UIHelpers.RUNE2))
+	nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if mirror else HORIZONTAL_ALIGNMENT_LEFT
+	var val := UIHelpers.lbl("%d/%d" % [cur, mx], 9, UIHelpers.RUNE2)
+	if mirror:
+		hd.add_child(val); hd.add_child(nl)
+		if icon_sq != null: hd.add_child(icon_sq)
+	else:
+		if icon_sq != null: hd.add_child(icon_sq)
+		hd.add_child(nl); hd.add_child(val)
 	v.add_child(hd)
 
 	# barra contínua (tween) + barra-fantasma + divisórias por cima
@@ -269,7 +338,22 @@ func _bar(side: String, key: String, name: String, desc: String, active: bool) -
 
 	var dl := UIHelpers.lbl(desc, 8, UIHelpers.RUNE2)
 	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if mirror else HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(dl)
+	return box
+
+## Ícone de status num quadradinho com moldura (estilo da referência).
+func _stat_icon_box(key: String) -> Control:
+	var ic := UIHelpers.icon_tex(STAT_ICON[key])
+	if ic == null:
+		return null
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UIHelpers.sbf(Color("140d07"), UIHelpers.BRONZE, 1, 5, 3, 3))
+	var ir := TextureRect.new(); ir.texture = ic
+	ir.custom_minimum_size = Vector2(20, 20)
+	ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	box.add_child(ir)
 	return box
 
 func _beasts_center() -> Control:
@@ -287,17 +371,17 @@ func _beast_slot(side: String, beast: Dictionary, kit: Color, has_ball: bool, in
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.alignment = BoxContainer.ALIGNMENT_END
 	var top := CenterContainer.new()
-	top.custom_minimum_size = Vector2(0, 30)
+	top.custom_minimum_size = Vector2(0, 64)
 	if has_ball:
 		var posse := UIHelpers.icon_tex("posse")
 		if posse != null:
 			var pr := TextureRect.new(); pr.texture = posse
-			pr.custom_minimum_size = Vector2(48, 28)
+			pr.custom_minimum_size = Vector2(64, 62)
 			pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			top.add_child(pr)
 		else:
-			top.add_child(_banner("⚽ POSSE"))
+			top.add_child(_banner("⚽ POSSE DE BOLA"))
 	elif intent != "":
 		top.add_child(_intent(intent))
 	v.add_child(top)
@@ -352,14 +436,37 @@ func _bottom() -> Control:
 	for i in engine.hand.size():
 		hand_h.add_child(_card(i))
 	h.add_child(scroll)
+	var right := VBoxContainer.new()
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_theme_constant_override("separation", 5)
+	var icons := HBoxContainer.new()
+	icons.alignment = BoxContainer.ALIGNMENT_CENTER
+	icons.add_theme_constant_override("separation", 12)
+	var bk := _small_icon("book")
+	if bk != null: icons.add_child(bk)
+	var gr := _small_icon("gear")
+	if gr != null: icons.add_child(gr)
+	if icons.get_child_count() > 0:
+		right.add_child(icons)
 	var endb := UIHelpers.gold_btn("FIM DE TURNO")
 	endb.custom_minimum_size = Vector2(150, 0)
 	endb.add_theme_font_size_override("font_size", 16)
 	endb.pressed.connect(_on_end_turn)
 	if not _has_affordable_card():
 		_pulse(endb)        # brilha quando não há mais o que fazer
-	h.add_child(endb)
+	right.add_child(endb)
+	h.add_child(right)
 	return panel
+
+func _small_icon(name: String) -> Control:
+	var t := UIHelpers.icon_tex(name)
+	if t == null:
+		return null
+	var r := TextureRect.new(); r.texture = t
+	r.custom_minimum_size = Vector2(24, 24)
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	return r
 
 func _has_affordable_card() -> bool:
 	for id in engine.hand:
@@ -428,27 +535,47 @@ func _card(idx: int) -> Control:
 	var v := VBoxContainer.new()
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_theme_constant_override("separation", 1)
-	var cost_lbl := UIHelpers.clbl("⚡%d" % c["cost"], 12, UIHelpers.GOLD2)
-	cost_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
-	cost_lbl.add_theme_constant_override("outline_size", 4)
-	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	v.add_child(cost_lbl)
+	v.add_theme_constant_override("separation", 0)
+	# faixa de nome (vermelha, topo)
+	var namep := PanelContainer.new()
+	namep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	namep.add_theme_stylebox_override("panel", UIHelpers.sbf(Color("8e2323"), Color("5a1414"), 1, 5, 2, 2))
+	var nm := UIHelpers.clbl(c["nm"], 9, Color("fbeede"))
+	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	namep.add_child(nm)
+	v.add_child(namep)
+	# meio (a arte aparece atrás; emoji no fallback)
+	var midc := CenterContainer.new()
+	midc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	midc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if art == null:
-		v.add_child(UIHelpers.clbl(c.get("ic", ""), 26, Color.WHITE))
-	var spacer := Control.new(); spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(spacer)
-	var name_lbl := UIHelpers.clbl(c["nm"], 10, UIHelpers.RUNE)
-	name_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
-	name_lbl.add_theme_constant_override("outline_size", 4)
-	v.add_child(name_lbl)
-	var ds := UIHelpers.clbl(c.get("ds", ""), 8, UIHelpers.RUNE2)
+		midc.add_child(UIHelpers.clbl(c.get("ic", ""), 30, Color.WHITE))
+	v.add_child(midc)
+	# descrição (rodapé translúcido)
+	var descp := PanelContainer.new()
+	descp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	descp.add_theme_stylebox_override("panel", UIHelpers.sbf(Color(0, 0, 0, 0.62), Color(0, 0, 0, 0), 0, 0, 3, 2))
+	var ds := UIHelpers.clbl(c.get("ds", ""), 8, UIHelpers.RUNE)
 	ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ds.add_theme_color_override("font_outline_color", Color.BLACK)
-	ds.add_theme_constant_override("outline_size", 3)
-	v.add_child(ds)
+	ds.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	descp.add_child(ds)
+	v.add_child(descp)
 	btn.add_child(v)
 	UIHelpers.ignore_mouse(v)
+	# custo em círculo (topo-esquerdo, por cima)
+	var circ := Panel.new()
+	circ.size = Vector2(26, 26); circ.position = Vector2(2, 2)
+	circ.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var csb := StyleBoxFlat.new(); csb.bg_color = Color("17110b")
+	csb.border_color = UIHelpers.GOLD; csb.set_border_width_all(2); csb.set_corner_radius_all(13)
+	circ.add_theme_stylebox_override("panel", csb)
+	var costn := UIHelpers.tlbl(str(c["cost"]), 14, UIHelpers.GOLD2)
+	costn.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	costn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	costn.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	costn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	circ.add_child(costn)
+	btn.add_child(circ)
 
 	# entrada (compra) — leque escalonado
 	if _fresh_hand:
