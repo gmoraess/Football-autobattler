@@ -17,6 +17,7 @@ var _prev_bars := {"home": {"F": 0.0, "C": 0.0, "D": 0.0, "E": 0.0},
 var _prev_energy := 0
 var _prev_score := {"home": 0, "away": 0}
 var _fresh_hand := true      # anima a entrada da mão (compra) neste render
+var _beast_node := {"home": null, "away": null}   # refs visuais das feras (reações)
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -275,12 +276,12 @@ func _beasts_center() -> Control:
 	var h := HBoxContainer.new()
 	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	h.add_child(_beast_slot(engine.home, UIHelpers.HOME_KIT, engine.possession == "home", ""))
-	h.add_child(_beast_slot(engine.away, UIHelpers.AWAY_KIT, engine.possession == "away",
+	h.add_child(_beast_slot("home", engine.home, UIHelpers.HOME_KIT, engine.possession == "home", ""))
+	h.add_child(_beast_slot("away", engine.away, UIHelpers.AWAY_KIT, engine.possession == "away",
 		engine.enemy_plan.get("icon", "")))
 	return h
 
-func _beast_slot(beast: Dictionary, kit: Color, has_ball: bool, intent: String) -> Control:
+func _beast_slot(side: String, beast: Dictionary, kit: Color, has_ball: bool, intent: String) -> Control:
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -307,6 +308,7 @@ func _beast_slot(beast: Dictionary, kit: Color, has_ball: bool, intent: String) 
 		spr.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		spr.custom_minimum_size = Vector2(0, 220)
 		v.add_child(spr)
+		_beast_node[side] = spr
 	else:
 		var cc := CenterContainer.new()
 		cc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -317,6 +319,7 @@ func _beast_slot(beast: Dictionary, kit: Color, has_ball: bool, intent: String) 
 		pc.add_child(UIHelpers.clbl(beast.get("crest", "?"), 56, Color.WHITE))
 		cc.add_child(p)
 		v.add_child(cc)
+		_beast_node[side] = p
 	return v
 
 func _banner(txt: String) -> Control:
@@ -482,7 +485,14 @@ func _show_result() -> void:
 	v.add_child(UIHelpers.clbl(
 		"%s venceu %s" % [engine._nm(engine.winner), reasons.get(engine.reason, "")],
 		14, UIHelpers.RUNE2))
-	v.add_child(UIHelpers.tlbl("%d  x  %d" % [engine.score["home"], engine.score["away"]], 26, UIHelpers.RUNE))
+	var sc_lbl := UIHelpers.tlbl("0  x  0", 26, UIHelpers.RUNE)
+	v.add_child(sc_lbl)
+	var hs: int = engine.score["home"]
+	var aw: int = engine.score["away"]
+	var ctw := create_tween()
+	ctw.tween_method(func(t: float):
+		sc_lbl.text = "%d  x  %d" % [int(round(t * hs)), int(round(t * aw))],
+		0.0, 1.0, 0.7).set_delay(0.3)
 	var btn := UIHelpers.gold_btn("CONTINUAR")
 	btn.pressed.connect(func(): match_ended.emit(won))
 	v.add_child(btn)
@@ -517,16 +527,11 @@ func _on_card(idx: int, btn: Button) -> void:
 func _on_end_turn() -> void:
 	if engine.over or engine.busy: return
 	engine.busy = true
-	var pre_score := {"home": engine.score["home"], "away": engine.score["away"]}
-	var pre_poss: String = engine.possession
 	engine.end_turn()
+	var events: Array = engine.turn_events.duplicate(true)
 	render()
-	# toasts de eventos do turno
-	if engine.score["home"] > pre_score["home"] or engine.score["away"] > pre_score["away"]:
-		_toast("⚽ GOOOL!", UIHelpers.GOLD2)
-	elif engine.possession != pre_poss:
-		_toast("✋ Roubo de bola!", Color("ff8f8f"))
-	await get_tree().create_timer(0.8).timeout
+	await _play_turn_choreo(events)
+	Engine.time_scale = 1.0     # garante restauração
 	engine.busy = false
 	if engine.over:
 		_show_result()
@@ -590,3 +595,196 @@ func _toast(msg: String, col: Color) -> void:
 	tw.tween_interval(0.7)
 	tw.tween_property(t, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(t.queue_free)
+
+# ==========================================================================
+#  COREOGRAFIA DO TURNO (Parte 2 — drama do campo)
+# ==========================================================================
+func _opp_side(s: String) -> String:
+	return "away" if s == "home" else "home"
+
+## Timer em tempo REAL (ignora o slow-mo / Engine.time_scale).
+func _rt(sec: float) -> void:
+	await get_tree().create_timer(sec, true, false, true).timeout
+
+func _play_turn_choreo(events: Array) -> void:
+	if events.is_empty():
+		await _rt(0.45)
+		return
+	for e in events:
+		match e.get("type", ""):
+			"steal":
+				_toast("✋ Roubo de bola!", Color("ff9a6a"))
+				_recoil(_beast_node.get(_opp_side(e["by"])))
+				await _rt(0.55)
+			"shot":
+				await _shot_choreo(e)
+	await _rt(0.2)
+
+func _shot_choreo(e: Dictionary) -> void:
+	var by: String = e["by"]
+	var result: String = e.get("result", "")
+	_lunge(_beast_node.get(by), by)
+	await _rt(0.12)
+	Engine.time_scale = 0.4          # câmera lenta
+	await _fireball(by)
+	Engine.time_scale = 1.0
+	if result == "goal":
+		_goal_burst()
+		var victim: String = e.get("victim", _opp_side(by))
+		_recoil(_beast_node.get(victim))
+		if e.has("drain"):
+			_float_number(victim, "-%d fôlego" % e["drain"], Color("ff6b6b"))
+		await _rt(0.95)
+	else:
+		_save_popup()
+		await _rt(0.6)
+
+func _fireball(by: String) -> void:
+	var vp := get_viewport_rect().size
+	var y := vp.y * 0.40
+	var start_x := vp.x * (0.34 if by == "home" else 0.66)
+	var goal_x := vp.x * (0.9 if by == "home" else 0.1)
+	var ball := _make_ball()
+	layer.add_child(ball)
+	ball.position = Vector2(start_x, y)
+	# rastro de fogo (aparece escalonado conforme a bola passa)
+	for i in 7:
+		var f := float(i + 1) / 8.0
+		var tx := lerpf(start_x, goal_x, f)
+		_spawn_trail(Vector2(tx, y - sin(f * PI) * 36), f * 0.45)
+	var tw := create_tween()
+	tw.tween_property(ball, "position:x", goal_x, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var tw2 := create_tween()
+	tw2.tween_property(ball, "position:y", y - 42, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw2.tween_property(ball, "position:y", y, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await tw.finished
+	ball.queue_free()
+
+func _spawn_trail(pos: Vector2, delay: float) -> void:
+	var d := _make_glow(16, Color(1, 0.55, 0.15, 0.9))
+	layer.add_child(d)
+	d.position = pos - Vector2(8, 8)
+	d.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(d, "modulate:a", 0.85, 0.05).set_delay(delay)
+	tw.tween_property(d, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(d.queue_free)
+
+func _make_ball() -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(30, 30)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var glow := _make_glow(46, Color(1, 0.5, 0.1, 0.6))
+	glow.position = Vector2(-8, -8)
+	c.add_child(glow)
+	var b := UIHelpers.icon_tex("ball")
+	if b != null:
+		var tr := TextureRect.new(); tr.texture = b
+		tr.size = Vector2(30, 30)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(tr)
+	else:
+		c.add_child(_make_glow(26, Color.WHITE))
+	return c
+
+func _make_glow(d: int, col: Color) -> Control:
+	var p := Panel.new()
+	p.custom_minimum_size = Vector2(d, d)
+	p.size = Vector2(d, d)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = col
+	sb.set_corner_radius_all(int(d / 2.0))
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return p
+
+func _goal_burst() -> void:
+	_screen_shake(11.0, 0.45)
+	_vignette_flash(Color(1.0, 0.82, 0.35), 0.4)
+	var t := UIHelpers.tlbl("G O O O L !", 60, UIHelpers.GOLD2)
+	t.add_theme_color_override("font_outline_color", Color.BLACK)
+	t.add_theme_constant_override("outline_size", 8)
+	t.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	t.position = get_viewport_rect().size / 2.0 - Vector2(180, 40)
+	t.custom_minimum_size = Vector2(360, 0)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.pivot_offset = Vector2(180, 30)
+	layer.add_child(t)
+	t.scale = Vector2(0.2, 0.2); t.modulate = Color(1, 1, 1, 0)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(t, "modulate:a", 1.0, 0.12)
+	tw.tween_property(t, "scale", Vector2(1.15, 1.15), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.set_parallel(false)
+	tw.tween_property(t, "scale", Vector2.ONE, 0.12)
+	tw.tween_interval(0.6)
+	tw.tween_property(t, "modulate:a", 0.0, 0.35)
+	tw.tween_callback(t.queue_free)
+
+func _save_popup() -> void:
+	_screen_shake(5.0, 0.25)
+	_toast("🧤 DEFENDEU!", Color("86d8ff"))
+
+func _screen_shake(intensity: float, dur: float) -> void:
+	var tw := create_tween()
+	var steps := 7
+	for i in steps:
+		var damp := 1.0 - float(i) / float(steps)
+		var off := Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity)) * damp
+		tw.tween_property(layer, "position", off, dur / float(steps))
+	tw.tween_property(layer, "position", Vector2.ZERO, dur / float(steps))
+
+func _vignette_flash(col: Color, dur: float) -> void:
+	var r := ColorRect.new()
+	r.color = Color(col.r, col.g, col.b, 0.45)
+	r.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.z_index = 50
+	layer.add_child(r)
+	var tw := create_tween()
+	tw.tween_property(r, "color:a", 0.0, dur)
+	tw.tween_callback(r.queue_free)
+
+func _lunge(node, side: String) -> void:
+	if node == null or not is_instance_valid(node): return
+	node.pivot_offset = node.size / 2.0
+	var dir := 1.0 if side == "home" else -1.0
+	var tw := create_tween()
+	tw.tween_property(node, "scale", Vector2(1.12, 1.12), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(node, "rotation", 0.06 * dir, 0.12)
+	tw.tween_property(node, "scale", Vector2.ONE, 0.22)
+	tw.parallel().tween_property(node, "rotation", 0.0, 0.22)
+
+func _recoil(node) -> void:
+	if node == null or not is_instance_valid(node): return
+	node.pivot_offset = node.size / 2.0
+	var tw := create_tween()
+	tw.tween_property(node, "rotation", 0.09, 0.05)
+	tw.tween_property(node, "rotation", -0.07, 0.05)
+	tw.tween_property(node, "rotation", 0.0, 0.1)
+	var tw2 := create_tween()
+	tw2.tween_property(node, "modulate", Color(2.2, 0.7, 0.7, 1), 0.06)
+	tw2.tween_property(node, "modulate", Color.WHITE, 0.28)
+
+func _float_number(side: String, text: String, col: Color) -> void:
+	var pos: Vector2
+	var node = _beast_node.get(side)
+	if node != null and is_instance_valid(node):
+		pos = node.global_position + Vector2(node.size.x / 2.0 - 40, node.size.y * 0.3)
+	else:
+		var vp := get_viewport_rect().size
+		pos = Vector2(vp.x * (0.3 if side == "home" else 0.7), vp.y * 0.4)
+	var l := UIHelpers.tlbl(text, 22, col)
+	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_constant_override("outline_size", 5)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(l)
+	l.position = pos
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(l, "position:y", pos.y - 50, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "modulate:a", 0.0, 0.9).set_delay(0.3)
+	tw.chain().tween_callback(l.queue_free)

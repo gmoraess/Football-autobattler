@@ -49,6 +49,7 @@ var energy_max := ENERGY
 var o_energy := ENERGY
 var enemy_plan := {"cards":[], "icon":""}
 var logs: Array = []
+var turn_events: Array = []   # eventos estruturados do turno (p/ coreografia da animação)
 # modificadores de passiva da fera + relíquias (aplicados em begin via p_mods)
 var relic_gol_drain := 0
 var relic_home_roubo_fin := 0
@@ -202,6 +203,7 @@ func _ai_plan() -> Dictionary:
 func _resolve_turn() -> void:
 	goal_h = false
 	goal_a = false
+	turn_events = []
 	# 1) ROUBO: desarme do sem-bola > controle do com-bola
 	var poss := possession
 	var d0 := _opp(poss)
@@ -212,6 +214,7 @@ func _resolve_turn() -> void:
 		if d0 == "home":
 			bars["home"]["F"] = mini(FMAXCAP, bars["home"]["F"] + relic_home_roubo_fin)
 			bars["home"]["C"] = mini(CD_CAP, bars["home"]["C"] + relic_home_roubo_ctrl)
+		turn_events.append({"type": "steal", "by": d0})
 		_log("✋ %s ROUBOU a bola!" % _nm(d0))
 	var p := possession
 	var d := _opp(p)
@@ -220,6 +223,7 @@ func _resolve_turn() -> void:
 		bars[p]["F"] = 0
 		if saves[d] > 0:
 			saves[d] -= 1
+			turn_events.append({"type": "shot", "by": p, "result": "save"})
 			_log("🧤 %s DEFENDEU o chute!" % _nm(d))
 		else:
 			score[p] += 1
@@ -227,6 +231,7 @@ func _resolve_turn() -> void:
 			else: goal_a = true
 			var gol_dmg: int = 3 + (relic_gol_drain if p == "home" else 0)
 			sta[d] = clampi(sta[d] - gol_dmg, 0, sta_max[d])
+			turn_events.append({"type": "shot", "by": p, "result": "goal", "drain": gol_dmg, "victim": d})
 			_log("⚽ GOOOL de %s! %d x %d" % [_nm(p), score["home"], score["away"]])
 	# 3) DEFESA: barra cheia -> guarda um chute (acumula)
 	for s in ["home", "away"]:

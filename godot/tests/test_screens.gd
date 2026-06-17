@@ -61,6 +61,15 @@ func _run() -> void:
 		await process_frame
 	print("  Fim de turno (sinal) + resolução: OK (turno %d)" % ms.engine.turn)
 
+	# exercita a coreografia da Parte 2 (todos os caminhos: roubo, defesa, gol)
+	ms.engine.busy = false
+	await ms._play_turn_choreo([
+		{"type": "steal", "by": "away"},
+		{"type": "shot", "by": "home", "result": "save"},
+		{"type": "shot", "by": "home", "result": "goal", "drain": 5, "victim": "away"},
+	])
+	print("  Coreografia (roubo+defesa+gol): OK (time_scale=%.1f)" % Engine.time_scale)
+
 	# testa relíquia e evento
 	main._show_relic(func(_id): pass)
 	await process_frame
