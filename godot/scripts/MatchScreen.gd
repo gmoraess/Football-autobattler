@@ -308,10 +308,19 @@ func _minimap() -> Control:
 	for p in ap: _bdot(c, p[0], p[1], UIHelpers.AWAY_KIT)
 	# bola
 	var bx: float = W * 0.42 if engine.possession == "home" else W * 0.58
-	var ball := ColorRect.new(); ball.color = Color.WHITE
-	ball.size = Vector2(9, 9); ball.position = Vector2(bx - 4, H * 0.5 - 4)
-	ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	c.add_child(ball)
+	var ball_tex := UIHelpers.icon_tex("ball")
+	if ball_tex != null:
+		var bt := TextureRect.new(); bt.texture = ball_tex
+		bt.size = Vector2(15, 15); bt.position = Vector2(bx - 7, H * 0.5 - 7)
+		bt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bt.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		bt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(bt)
+	else:
+		var ball := ColorRect.new(); ball.color = Color.WHITE
+		ball.size = Vector2(9, 9); ball.position = Vector2(bx - 4, H * 0.5 - 4)
+		ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(ball)
 	return c
 
 func _circle_outline(parent: Control, center: Vector2, r: float, col: Color) -> void:
@@ -531,17 +540,16 @@ func _bottom() -> Control:
 	h.add_theme_constant_override("separation", 10)
 	mc.add_child(h)
 	h.add_child(_energy_box())
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 148)
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	var hand_h := HBoxContainer.new(); hand_h.add_theme_constant_override("separation", 6)
+	# CenterContainer (sem clipping) pra não cortar as cartas nem o hover-lift
+	var hand_wrap := CenterContainer.new()
+	hand_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hand_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var hand_h := HBoxContainer.new(); hand_h.add_theme_constant_override("separation", 8)
 	hand_h.alignment = BoxContainer.ALIGNMENT_CENTER
-	hand_h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(hand_h)
+	hand_wrap.add_child(hand_h)
 	for i in engine.hand.size():
 		hand_h.add_child(_card(i))
-	h.add_child(scroll)
+	h.add_child(hand_wrap)
 	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 15)
 	endb.custom_minimum_size = Vector2(210, 79)
 	endb.pressed.connect(_on_end_turn)
@@ -594,8 +602,8 @@ func _card(idx: int) -> Control:
 	var c: Dictionary = Cards.ALL[id]
 	var can: bool = c["cost"] <= engine.energy and not engine.busy
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(96, 138)
-	btn.pivot_offset = Vector2(48, 138)     # cresce pra cima no hover
+	btn.custom_minimum_size = Vector2(88, 126)
+	btn.pivot_offset = Vector2(44, 126)     # cresce pra cima no hover
 	btn.disabled = not can
 	var border: Color = UIHelpers.TYPE_COL.get(c["type"], UIHelpers.BRONZE)
 	btn.add_theme_stylebox_override("normal",   UIHelpers.sbf(Color("1d1409"), border, 2, 9, 0, 0))
