@@ -209,7 +209,7 @@ func _resolve_turn() -> void:
 	# 1) ROUBO: desarme do sem-bola > controle do com-bola
 	var poss := possession
 	var d0 := _opp(poss)
-	if bars[d0]["D"] > bars[poss]["C"]:
+	if bars[d0]["D"] > 0 and bars[d0]["D"] >= bars[poss]["C"]:
 		possession = d0
 		bars[poss]["C"] = 0
 		bars[d0]["D"] = 0

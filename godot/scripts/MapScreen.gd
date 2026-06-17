@@ -141,7 +141,7 @@ func _node_btn(c_idx: int, l_idx: int, node: Dictionary, reachable: Array) -> Co
 	var tp: String = node.get("type", "partida")
 	var visited: bool = node.get("visited", false)
 	var is_current: bool = (c_idx == GameState.col and
-	                        (l_idx == GameState.lane or map_data_is_boss(c_idx)))
+							(l_idx == GameState.lane or map_data_is_boss(c_idx)))
 
 	# É alcançável?
 	var can_click := false

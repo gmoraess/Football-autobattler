@@ -49,6 +49,7 @@ func _run_batch(n: int, diff: float, label: String) -> void:
 	var wins := {"home": 0, "away": 0}
 	var total_goals := 0
 	var total_turns := 0
+	var total_steals := 0
 	var exceptions := 0
 	var reasons: Dictionary = {}
 
@@ -69,6 +70,8 @@ func _run_batch(n: int, diff: float, label: String) -> void:
 			_home_ai_play(eng)
 			# Resolve turno (away joga via _ai_plan interno)
 			eng.end_turn()
+			for e in eng.turn_events:
+				if e.get("type", "") == "steal": total_steals += 1
 			if not eng.over:
 				eng.start_turn()
 
@@ -93,5 +96,6 @@ func _run_batch(n: int, diff: float, label: String) -> void:
 		print("  ERRO inconclusivos: %d" % none_w)
 	print("  Média gols/partida : %.2f" % (float(total_goals) / float(n)))
 	print("  Média turnos/partida: %.1f"  % (float(total_turns) / float(n)))
+	print("  Roubos/partida     : %.2f" % (float(total_steals) / float(n)))
 	print("  Exceções (loops)   : %d" % exceptions)
 	print("  Razões de fim: %s" % str(reasons))

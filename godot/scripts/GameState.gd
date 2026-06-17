@@ -96,16 +96,16 @@ const EVENTS := [
 
 # Decks dos inimigos
 const DECK_NORMAL := [["passe",3],["drible",2],["lancamento",2],["visao",2],["finaliza",2],
-                      ["colocado",1],["bicuda",1],["pancada",3],["defesa",3],["bloqueio",2],
-                      ["desarme",3],["marcacao",2],["carrinho",2]]
+					  ["colocado",1],["bicuda",1],["pancada",3],["defesa",3],["bloqueio",2],
+					  ["desarme",3],["marcacao",2],["carrinho",2]]
 const DECK_ELITE  := [["finaliza",3],["bicuda",2],["voleio",1],["drible",2],["lancamento",2],
-                      ["passe",2],["defesa",3],["muralha",2],["desarme",3],["ombro",2],["solada",2]]
+					  ["passe",2],["defesa",3],["muralha",2],["desarme",3],["ombro",2],["solada",2]]
 const DECK_BOSS0  := [["finaliza",3],["lancamento",3],["drible",2],["passe",2],["defesa",3],
-                      ["bloqueio",2],["muralha",2],["desarme",2],["pancada",3]]
+					  ["bloqueio",2],["muralha",2],["desarme",2],["pancada",3]]
 const DECK_BOSS1  := [["voleio",2],["bicuda",3],["colocado",2],["drible",2],["caneta",2],
-                      ["botinha",3],["solada",2],["muralha",2],["defesa",2],["ombro",2]]
+					  ["botinha",3],["solada",2],["muralha",2],["defesa",2],["ombro",2]]
 const DECK_BOSS2  := [["voleio",3],["bicuda",3],["colocado",2],["caneta",2],["finaliza",2],
-                      ["muralha",3],["botinha",2],["solada",2],["defesa",2],["bloqueio",1]]
+					  ["muralha",3],["botinha",2],["solada",2],["defesa",2],["bloqueio",1]]
 
 # ==========================================================================
 #  ESTADO DA CORRIDA
@@ -229,7 +229,7 @@ func _random_enemy(_a: int, elite: bool) -> Dictionary:
 
 func enemy_deck(deck_key: String) -> Array:
 	var specs := {"normal":DECK_NORMAL, "elite":DECK_ELITE,
-	              "boss0":DECK_BOSS0,   "boss1":DECK_BOSS1, "boss2":DECK_BOSS2}
+				  "boss0":DECK_BOSS0,   "boss1":DECK_BOSS1, "boss2":DECK_BOSS2}
 	var spec: Array = specs.get(deck_key, DECK_NORMAL)
 	return _build_deck(spec)
 

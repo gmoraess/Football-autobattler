@@ -13,7 +13,7 @@ var layer: Control          # tudo menos o fundo (pra re-render)
 
 # --- estado p/ animação (valores anteriores) ---
 var _prev_bars := {"home": {"F": 0.0, "C": 0.0, "D": 0.0, "E": 0.0},
-                   "away": {"F": 0.0, "C": 0.0, "D": 0.0, "E": 0.0}}
+				   "away": {"F": 0.0, "C": 0.0, "D": 0.0, "E": 0.0}}
 var _prev_energy := 0
 var _prev_score := {"home": 0, "away": 0}
 var _fresh_hand := true      # anima a entrada da mão (compra) neste render
@@ -837,24 +837,24 @@ func _rt(sec: float) -> void:
 
 func _play_turn_choreo(events: Array) -> void:
 	if events.is_empty():
-		await _rt(0.45)
+		await _rt(0.28)
 		return
 	for e in events:
 		match e.get("type", ""):
 			"steal":
 				_toast("✋ Roubo de bola!", Color("ff9a6a"))
 				_recoil(_beast_node.get(_opp_side(e["by"])))
-				await _rt(0.55)
+				await _rt(0.4)
 			"shot":
 				await _shot_choreo(e)
-	await _rt(0.2)
+	await _rt(0.15)
 
 func _shot_choreo(e: Dictionary) -> void:
 	var by: String = e["by"]
 	var result: String = e.get("result", "")
 	_lunge(_beast_node.get(by), by)
-	await _rt(0.12)
-	Engine.time_scale = 0.4          # câmera lenta
+	await _rt(0.1)
+	Engine.time_scale = 0.5          # câmera lenta (menos extrema = mais rápido)
 	await _fireball(by)
 	Engine.time_scale = 1.0
 	if result == "goal":
@@ -863,10 +863,10 @@ func _shot_choreo(e: Dictionary) -> void:
 		_recoil(_beast_node.get(victim))
 		if e.has("drain"):
 			_float_number(victim, "-%d fôlego" % e["drain"], Color("ff6b6b"))
-		await _rt(0.95)
+		await _rt(0.7)
 	else:
 		_save_popup()
-		await _rt(0.6)
+		await _rt(0.45)
 
 func _fireball(by: String) -> void:
 	var vp := get_viewport_rect().size
