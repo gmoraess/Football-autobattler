@@ -204,19 +204,30 @@ static var _f_body: FontFile = null
 static var _f_loaded := false
 
 ## Carrega o TTF direto (load_dynamic_font), driblando o sistema de importação.
-static func _dyn_font(path: String) -> FontFile:
+## antialiasing OFF + subpixel OFF = renderização pixel-art crisp (combina com a arte).
+static func _dyn_font(path: String, pixel: bool = true) -> FontFile:
 	if not FileAccess.file_exists(path):
 		return null
 	var f := FontFile.new()
 	if f.load_dynamic_font(path) != OK:
 		return null
+	if pixel:
+		f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+		f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+		f.hinting = TextServer.HINTING_NONE
+		f.force_autohinter = false
 	return f
 
 static func _load_fonts() -> void:
 	if _f_loaded: return
 	_f_loaded = true
-	_f_title = _dyn_font(A_FONT + "Cinzel.ttf")
-	_f_body = _dyn_font(A_FONT + "Oswald.ttf")
+	# Fonte PIXEL (combina com os assets pixel-art). Pixelify Sans pra tudo.
+	var px := _dyn_font(A_FONT + "PixelifySans.ttf")
+	_f_title = px
+	_f_body = px
+	# fallback se a pixel não existir
+	if _f_title == null: _f_title = _dyn_font(A_FONT + "Cinzel.ttf", false)
+	if _f_body == null: _f_body = _dyn_font(A_FONT + "Oswald.ttf", false)
 
 static func title_font() -> FontFile:
 	_load_fonts(); return _f_title
