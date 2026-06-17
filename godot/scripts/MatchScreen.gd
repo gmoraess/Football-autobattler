@@ -316,19 +316,17 @@ func _minimap() -> Control:
 	for p in ap: _bdot(c, p[0], p[1], UIHelpers.AWAY_KIT)
 	# bola
 	var bx: float = W * 0.42 if engine.possession == "home" else W * 0.58
-	var ball_tex := UIHelpers.icon_tex("ball")
-	if ball_tex != null:
-		var bt := TextureRect.new(); bt.texture = ball_tex
-		bt.size = Vector2(15, 15); bt.position = Vector2(bx - 7, H * 0.5 - 7)
-		bt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bt.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		bt.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		c.add_child(bt)
-	else:
-		var ball := ColorRect.new(); ball.color = Color.WHITE
-		ball.size = Vector2(9, 9); ball.position = Vector2(bx - 4, H * 0.5 - 4)
-		ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		c.add_child(ball)
+	# bola do mini-campo: círculo desenhado (sem ball.png, pra eliminar qualquer
+	# risco de a textura aparecer gigante em outro lugar)
+	var ball := Panel.new()
+	ball.size = Vector2(11, 11); ball.position = Vector2(bx - 5.5, H * 0.5 - 5.5)
+	ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bsb := StyleBoxFlat.new()
+	bsb.bg_color = Color.WHITE
+	bsb.set_corner_radius_all(6)
+	bsb.border_color = Color(0, 0, 0, 0.5); bsb.set_border_width_all(1)
+	ball.add_theme_stylebox_override("panel", bsb)
+	c.add_child(ball)
 	return c
 
 func _circle_outline(parent: Control, center: Vector2, r: float, col: Color) -> void:
