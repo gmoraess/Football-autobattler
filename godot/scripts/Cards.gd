@@ -1,5 +1,5 @@
-class_name Cards
 ## Definição das cartas + baralhos. Portado de beasts.html.
+## (sem class_name — acessado via `const Cards = preload(...)`)
 ## Cada carta: mode(atk/def), type(con/fin/des/def), nm, ic, cost
 ## e a contribuição às 4 barras (F=Finalização, C=Controle, D=Desarme, E=Defesa).
 ## sta = tira fôlego do oponente · pierce = fura defesa (campo presente, ainda não ligado no motor de barras).

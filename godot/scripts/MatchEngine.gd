@@ -1,5 +1,5 @@
-class_name MatchEngine
 extends RefCounted
+## (sem class_name — acessado via `const MatchEngine = preload(...)`)
 ## Motor da partida — 4 BARRAS + ENERGIA. Lógica pura (sem UI), portada de beasts.html.
 
 const Cards = preload("res://scripts/Cards.gd")

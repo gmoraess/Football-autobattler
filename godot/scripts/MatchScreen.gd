@@ -65,8 +65,11 @@ func _start_match() -> void:
 #  RENDER
 # ==========================================================================
 func render() -> void:
+	# remove_child + queue_free: liberar com free() aqui quebraria quando o
+	# render vem do sinal `pressed` de uma carta/botão (nó se auto-libera no meio da emissão).
 	for c in layer.get_children():
-		c.free()
+		layer.remove_child(c)
+		c.queue_free()
 	var root := MarginContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
@@ -393,7 +396,8 @@ func _card(idx: int) -> Control:
 # ==========================================================================
 func _show_result() -> void:
 	for c in layer.get_children():
-		c.free()
+		layer.remove_child(c)
+		c.queue_free()
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(center)

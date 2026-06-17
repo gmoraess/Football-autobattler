@@ -1,5 +1,5 @@
-class_name UIHelpers
 ## Constantes de paleta e helpers de UI reutilizados em todas as telas.
+## (sem class_name — é sempre acessado via `const UIHelpers = preload(...)`)
 ## Todos os métodos são static — não instanciar.
 
 # ---- Paleta ----

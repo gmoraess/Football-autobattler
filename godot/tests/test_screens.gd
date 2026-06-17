@@ -38,12 +38,28 @@ func _run() -> void:
 	print("  MatchScreen montada: %s x %s · turno %d" % [
 		ms.engine.home.get("name"), ms.engine.away.get("name"), ms.engine.turn])
 
-	# joga um turno inteiro
-	for i in ms.engine.hand.size():
-		ms.engine.play_card(0)
-	ms.render()
-	await process_frame
-	print("  Jogou cartas + render: OK (energia %d)" % ms.engine.energy)
+	# clica numa carta VIA SINAL pressed (reproduz o contexto do erro "freed while signal")
+	var btns: Array = []
+	_collect_buttons(ms, btns)
+	var card_btn: Button = null
+	for b in btns:
+		if not b.disabled and b.custom_minimum_size.y > 120:  # cartas têm altura ~138
+			card_btn = b; break
+	if card_btn != null:
+		card_btn.emit_signal("pressed")
+		await process_frame
+		print("  Clique de carta (sinal): OK (energia %d)" % ms.engine.energy)
+
+	# clica FIM DE TURNO via sinal e aguarda a resolução (timer 0.8s)
+	btns.clear()
+	_collect_buttons(ms, btns)
+	for b in btns:
+		if b.text == "FIM DE TURNO":
+			b.emit_signal("pressed")
+			break
+	for _f in 60:
+		await process_frame
+	print("  Fim de turno (sinal) + resolução: OK (turno %d)" % ms.engine.turn)
 
 	# testa relíquia e evento
 	main._show_relic(func(_id): pass)
@@ -58,3 +74,9 @@ func _run() -> void:
 
 	print("=== SMOKE OK ===")
 	quit()
+
+func _collect_buttons(n: Node, out: Array) -> void:
+	if n is Button:
+		out.append(n)
+	for ch in n.get_children():
+		_collect_buttons(ch, out)

@@ -222,7 +222,7 @@ func _mk_boss(a: int, diff: float) -> Dictionary:
 	var e: Dictionary = BOSSES[a % BOSSES.size()].duplicate()
 	return {"type":"boss", "diff": diff, "enemy": e, "visited": false, "deck_key": e["deck_key"]}
 
-func _random_enemy(a: int, elite: bool) -> Dictionary:
+func _random_enemy(_a: int, elite: bool) -> Dictionary:
 	if elite:
 		return ELITE_ENEMIES[randi() % ELITE_ENEMIES.size()].duplicate()
 	return NORMAL_ENEMIES[randi() % NORMAL_ENEMIES.size()].duplicate()
