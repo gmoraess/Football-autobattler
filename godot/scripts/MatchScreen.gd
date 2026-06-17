@@ -40,10 +40,36 @@ func _ready() -> void:
 		bg.color = UIHelpers.STONE
 		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		add_child(bg)
+	# faixas pintadas (topo/rodapé) — fundo da HUD, atrás do conteúdo
+	_strip_bg("topbar_bg", true)
+	_strip_bg("bottombar_bg", false)
 	layer = Control.new()
 	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(layer)
 	_start_match()
+
+## Coloca uma faixa pintada full-width no topo ou no rodapé (band no topo da imagem).
+func _strip_bg(tex_name: String, is_top: bool) -> void:
+	var t := UIHelpers.frame_tex(tex_name)
+	if t == null: return
+	var W := 1280.0
+	var h := W * float(t.get_height()) / float(t.get_width())
+	var tr := TextureRect.new()
+	tr.texture = t
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	tr.offset_left = 0; tr.offset_right = 0
+	if is_top:
+		tr.offset_top = -8
+		tr.offset_bottom = h - 8
+	else:
+		# a "band" pintada fica no topo da imagem (~23% da altura); encosta no rodapé (720)
+		var band := h * 0.23
+		tr.offset_top = 720.0 - band - 2.0
+		tr.offset_bottom = tr.offset_top + h
+	add_child(tr)
 
 func _start_match() -> void:
 	var node: Dictionary = GameState.current_node
@@ -115,25 +141,47 @@ func render() -> void:
 
 # --- placar superior ---
 func _scoreboard() -> Control:
-	var panel := UIHelpers.strip(0, 2)
+	# transparente: o chrome vem do topbar_bg pintado. Margens laterais limpam
+	# os crests embutidos; o conteúdo encaixa nos vãos.
+	var mc := MarginContainer.new()
+	mc.add_theme_constant_override("margin_left", 145)
+	mc.add_theme_constant_override("margin_right", 145)
+	mc.add_theme_constant_override("margin_top", 14)
+	mc.add_theme_constant_override("margin_bottom", 4)
+	mc.custom_minimum_size = Vector2(0, 150)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 16)
+	h.add_theme_constant_override("separation", 12)
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
-	panel.add_child(h)
+	mc.add_child(h)
 	h.add_child(_team_head("home"))
-	var mid := VBoxContainer.new()
-	mid.alignment = BoxContainer.ALIGNMENT_CENTER
-	mid.custom_minimum_size = Vector2(200, 0)
-	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 56, Color("f4eee2"))
-	mid.add_child(score_lbl)
-	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
-		_pop(score_lbl, 1.5)
-	var trn := "TURNO %d / %d" % [mini(engine.turn, MatchEngine.TURNS), MatchEngine.TURNS]
-	if engine.sudden_death: trn += " · MORTE SÚBITA"
-	mid.add_child(UIHelpers.clbl(trn, 11, UIHelpers.GOLD))
-	h.add_child(mid)
+	h.add_child(_score_plate())
 	h.add_child(_team_head("away"))
-	return panel
+	return mc
+
+func _score_plate() -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(230, 112)
+	var plate := UIHelpers.frame_tex("score_plate")
+	if plate != null:
+		var tr := TextureRect.new(); tr.texture = plate
+		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(tr)
+	var v := VBoxContainer.new()
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 44, Color("f4eee2"))
+	v.add_child(score_lbl)
+	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
+		_pop(score_lbl, 1.4)
+	var trn := "TURNO %d / %d" % [mini(engine.turn, MatchEngine.TURNS), MatchEngine.TURNS]
+	if engine.sudden_death: trn += " · MS"
+	v.add_child(UIHelpers.clbl(trn, 10, UIHelpers.GOLD))
+	c.add_child(v)
+	return c
 
 func _crest_rect() -> Control:
 	var crest := UIHelpers.frame_tex("banner_crest")
@@ -150,29 +198,28 @@ func _team_head(side: String) -> Control:
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 4)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var nl := UIHelpers.tlbl(engine._nm(side), 23, Color("f3ece0"))
+	var nl := UIHelpers.tlbl(engine._nm(side), 20, Color("f3ece0"))
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var cr := _crest_rect()
-	if side == "home":
-		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		if cr != null: row.add_child(cr)
-		row.add_child(nl)
-	else:
-		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(nl)
-		if cr != null: row.add_child(cr)
-	v.add_child(row)
+	nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if side == "home" else HORIZONTAL_ALIGNMENT_RIGHT
+	v.add_child(nl)
 	v.add_child(_sta_bar(side))
 	return v
 
-## Barra de fôlego com cor por lado (casa=teal, visitante=vermelho) + rótulo/valor.
+## Atlas que recorta só a "band" da bar_frame (tira a margem transparente vertical).
+func _bar_frame_atlas() -> Texture2D:
+	var t := UIHelpers.frame_tex("bar_frame")
+	if t == null: return null
+	var at := AtlasTexture.new()
+	at.atlas = t
+	at.region = Rect2(0, 330, 1536, 364)
+	return at
+
+## Barra de fôlego: preenchimento teal/vermelho dentro da moldura pintada bar_frame.
 func _sta_bar(side: String) -> Control:
 	var col: Color = Color("3ec3c3") if side == "home" else Color("d8463a")
 	var frac: float = float(engine.sta[side]) / float(engine.sta_max[side])
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
+	v.add_theme_constant_override("separation", 1)
 	var top := HBoxContainer.new()
 	var lab := UIHelpers.lbl("FÔLEGO", 9, col)
 	var num := UIHelpers.lbl("%d/%d" % [engine.sta[side], engine.sta_max[side]], 9, UIHelpers.RUNE)
@@ -182,19 +229,34 @@ func _sta_bar(side: String) -> Control:
 	else:
 		top.add_child(num); top.add_child(sp); top.add_child(lab)
 	v.add_child(top)
-	var track := Control.new()
-	track.custom_minimum_size = Vector2(210, 11)
-	var bg := ColorRect.new(); bg.color = Color("1a0c0c")
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	track.add_child(bg)
-	var fill := ColorRect.new(); fill.color = col
-	fill.anchor_top = 0.0; fill.anchor_bottom = 1.0
-	if side == "home":
-		fill.anchor_left = 0.0; fill.anchor_right = frac
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(230, 52)
+	var fr := _bar_frame_atlas()
+	if fr != null:
+		# preenchimento dentro do "buraco" da moldura (frações estimadas)
+		var fill := ColorRect.new(); fill.color = col
+		fill.anchor_top = 0.34; fill.anchor_bottom = 0.66
+		if side == "home":
+			fill.anchor_left = 0.11; fill.anchor_right = 0.11 + 0.78 * frac
+		else:
+			fill.anchor_left = 0.89 - 0.78 * frac; fill.anchor_right = 0.89
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(fill)
+		var tr := TextureRect.new(); tr.texture = fr
+		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(tr)
 	else:
-		fill.anchor_left = 1.0 - frac; fill.anchor_right = 1.0
-	track.add_child(fill)
-	v.add_child(track)
+		# fallback sem moldura
+		var bg := ColorRect.new(); bg.color = Color("1a0c0c")
+		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); c.add_child(bg)
+		var fill := ColorRect.new(); fill.color = col
+		fill.anchor_top = 0.3; fill.anchor_bottom = 0.7
+		fill.anchor_left = 0.0; fill.anchor_right = frac
+		c.add_child(fill)
+	v.add_child(c)
 	return v
 
 const MM_W := 330.0
@@ -458,14 +520,20 @@ func _intent(icon: String) -> Control:
 
 # --- faixa inferior: energia | cartas | fim de turno ---
 func _bottom() -> Control:
-	var panel := UIHelpers.strip(2, 0)
+	# transparente: o chrome vem do bottombar_bg pintado (já tem livro/engrenagem)
+	var mc := MarginContainer.new()
+	mc.add_theme_constant_override("margin_left", 34)
+	mc.add_theme_constant_override("margin_right", 26)
+	mc.add_theme_constant_override("margin_top", 6)
+	mc.add_theme_constant_override("margin_bottom", 12)
+	mc.custom_minimum_size = Vector2(0, 150)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 10)
-	panel.add_child(h)
+	mc.add_child(h)
 	h.add_child(_energy_box())
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 156)
+	scroll.custom_minimum_size = Vector2(0, 148)
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var hand_h := HBoxContainer.new(); hand_h.add_theme_constant_override("separation", 6)
 	hand_h.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -474,26 +542,13 @@ func _bottom() -> Control:
 	for i in engine.hand.size():
 		hand_h.add_child(_card(i))
 	h.add_child(scroll)
-	var right := VBoxContainer.new()
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	right.add_theme_constant_override("separation", 5)
-	var icons := HBoxContainer.new()
-	icons.alignment = BoxContainer.ALIGNMENT_CENTER
-	icons.add_theme_constant_override("separation", 12)
-	var bk := _small_icon("book")
-	if bk != null: icons.add_child(bk)
-	var gr := _small_icon("gear")
-	if gr != null: icons.add_child(gr)
-	if icons.get_child_count() > 0:
-		right.add_child(icons)
 	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 15)
-	endb.custom_minimum_size = Vector2(210, 79)   # ~proporção 256x96 da textura
+	endb.custom_minimum_size = Vector2(210, 79)
 	endb.pressed.connect(_on_end_turn)
 	if not _has_affordable_card():
 		_pulse(endb)        # brilha quando não há mais o que fazer
-	right.add_child(endb)
-	h.add_child(right)
-	return panel
+	h.add_child(endb)
+	return mc
 
 func _small_icon(name: String) -> Control:
 	var t := UIHelpers.icon_tex(name)
