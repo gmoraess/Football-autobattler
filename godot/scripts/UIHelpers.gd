@@ -61,34 +61,37 @@ static func gold_btn(txt: String) -> Button:
 	return b
 
 ## Botão ORNAMENTADO usando a textura button_gold.png (fallback p/ gold_btn).
+## Botão ornamentado ROBUSTO: fundo = TextureRect filho (escala a textura inteira),
+## texto = Label centralizado. Sem StyleBoxTexture (que estava bugando).
 static func ornate_btn(txt: String, fsize: int = 16) -> Button:
-	var t := frame_tex("button_gold")
-	if t == null:
-		return gold_btn(txt)
 	var b := Button.new()
-	b.text = txt
-	b.add_theme_font_size_override("font_size", fsize)
+	b.flat = true
+	var empty := StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		b.add_theme_stylebox_override(st, empty)
+	var t := frame_tex("button_gold")
+	if t != null:
+		var bg := TextureRect.new()
+		bg.texture = t
+		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_SCALE
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(bg)
+	else:
+		b.add_theme_stylebox_override("normal", sbf(GOLD, Color("8a6a2a"), 1, 9, 12, 11))
+	var lbl := Label.new()
+	lbl.text = txt
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", fsize)
+	lbl.add_theme_color_override("font_color", Color("2a1606"))
 	var tf := title_font()
-	if tf != null: b.add_theme_font_override("font", tf)
-	b.add_theme_color_override("font_color", Color("2a1606"))
-	b.add_theme_color_override("font_hover_color", Color("3a2008"))
-	b.add_theme_color_override("font_pressed_color", Color("2a1606"))
-	b.add_theme_stylebox_override("normal",  _btn_tex(t, Color.WHITE))
-	b.add_theme_stylebox_override("hover",   _btn_tex(t, Color(1.14, 1.14, 1.14)))
-	b.add_theme_stylebox_override("pressed", _btn_tex(t, Color(0.85, 0.85, 0.85)))
+	if tf != null: lbl.add_theme_font_override("font", tf)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(lbl)
 	return b
-
-static func _btn_tex(t: Texture2D, mod: Color) -> StyleBoxTexture:
-	var s := StyleBoxTexture.new()
-	s.texture = t
-	# SEM 9-slice: a textura tem ornamentos no centro do topo/base que
-	# borrariam se o miolo fosse esticado. Escala a textura inteira (botão
-	# deve manter ~proporção 256x96) e só usa content_margin pro texto.
-	s.set_texture_margin_all(0)
-	s.content_margin_left = 22; s.content_margin_right = 22
-	s.content_margin_top = 14; s.content_margin_bottom = 16
-	s.modulate_color = mod
-	return s
 
 ## Tira escura full-width (topo/rodapé) com fio de ouro só na borda indicada.
 static func strip(border_top: int, border_bottom: int) -> PanelContainer:
@@ -221,13 +224,12 @@ static func _dyn_font(path: String, pixel: bool = true) -> FontFile:
 static func _load_fonts() -> void:
 	if _f_loaded: return
 	_f_loaded = true
-	# Fonte PIXEL (combina com os assets pixel-art). Pixelify Sans pra tudo.
-	var px := _dyn_font(A_FONT + "PixelifySans.ttf")
-	_f_title = px
-	_f_body = px
-	# fallback se a pixel não existir
-	if _f_title == null: _f_title = _dyn_font(A_FONT + "Cinzel.ttf", false)
-	if _f_body == null: _f_body = _dyn_font(A_FONT + "Oswald.ttf", false)
+	# Fonte SUAVE (a arte é pixel, mas a fonte da referência é lisa):
+	# Cinzel (serifada) pros títulos/placar/botão, Oswald (condensada) pros rótulos.
+	_f_title = _dyn_font(A_FONT + "Cinzel.ttf", false)
+	_f_body = _dyn_font(A_FONT + "Oswald.ttf", false)
+	if _f_title == null: _f_title = _dyn_font(A_FONT + "PixelifySans.ttf")
+	if _f_body == null: _f_body = _f_title
 
 static func title_font() -> FontFile:
 	_load_fonts(); return _f_title

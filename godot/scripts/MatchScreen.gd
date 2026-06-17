@@ -160,26 +160,28 @@ func _scoreboard() -> Control:
 
 func _score_plate() -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(230, 112)
+	# proporção ~ da score_plate (1967x799 ≈ 2.46) pra ela preencher sem sobrar borda
+	c.custom_minimum_size = Vector2(238, 98)
 	var plate := UIHelpers.frame_tex("score_plate")
 	if plate != null:
 		var tr := TextureRect.new(); tr.texture = plate
 		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		c.add_child(tr)
 	var v := VBoxContainer.new()
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 0)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 44, Color("f4eee2"))
+	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 40, Color("f4eee2"))
 	v.add_child(score_lbl)
 	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
 		_pop(score_lbl, 1.4)
 	var trn := "TURNO %d / %d" % [mini(engine.turn, MatchEngine.TURNS), MatchEngine.TURNS]
 	if engine.sudden_death: trn += " · MS"
-	v.add_child(UIHelpers.clbl(trn, 10, UIHelpers.GOLD))
+	v.add_child(UIHelpers.clbl(trn, 9, UIHelpers.GOLD))
 	c.add_child(v)
 	return c
 
@@ -602,8 +604,8 @@ func _card(idx: int) -> Control:
 	var c: Dictionary = Cards.ALL[id]
 	var can: bool = c["cost"] <= engine.energy and not engine.busy
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(88, 126)
-	btn.pivot_offset = Vector2(44, 126)     # cresce pra cima no hover
+	btn.custom_minimum_size = Vector2(84, 118)
+	btn.pivot_offset = Vector2(42, 118)     # cresce pra cima no hover
 	btn.disabled = not can
 	var border: Color = UIHelpers.TYPE_COL.get(c["type"], UIHelpers.BRONZE)
 	btn.add_theme_stylebox_override("normal",   UIHelpers.sbf(Color("1d1409"), border, 2, 9, 0, 0))

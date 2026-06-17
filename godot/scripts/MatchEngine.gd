@@ -158,7 +158,9 @@ func _apply_card(side: String, c: Dictionary) -> void:
 	if c.has("sta"):
 		var o := _opp(side)
 		var extra: int = relic_impact_sta if side == "home" else 0
-		sta[o] = clampi(sta[o] - (c["sta"] + extra), 0, sta_max[o])
+		# (C) dano de impacto reduzido ~20% pra gol ser o caminho principal (KO secundário)
+		var base: int = roundi(c["sta"] * 0.8)
+		sta[o] = clampi(sta[o] - (base + extra), 0, sta_max[o])
 
 func _prio(c: Dictionary, has_ball: bool) -> int:
 	if has_ball:
