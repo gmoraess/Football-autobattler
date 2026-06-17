@@ -47,15 +47,13 @@ var o_discard: Array = []
 var energy := ENERGY
 var energy_max := ENERGY
 var o_energy := ENERGY
-var fury := 0
-var super_name := ""
-var super_armed := ""
 var enemy_plan := {"cards":[], "icon":""}
 var logs: Array = []
-# modificadores de relíquias (aplicados em begin via p_mods)
+# modificadores de passiva da fera + relíquias (aplicados em begin via p_mods)
 var relic_gol_drain := 0
-var relic_fury_gain := 22
 var relic_home_roubo_fin := 0
+var relic_home_roubo_ctrl := 0
+var relic_impact_sta := 0
 var relic_hand_size := 5
 
 # --------------------------------------------------------------------------
@@ -90,23 +88,22 @@ func begin(p_home: Dictionary, p_away: Dictionary, p_deck: Array, p_odeck: Array
 	energy = ENERGY
 	energy_max = ENERGY
 	o_energy = ENERGY
-	fury = 0
-	super_name = home.get("super", "")
-	super_armed = ""
 	logs = []
-	# --- aplicar modificadores de relíquias ---
-	relic_gol_drain       = p_mods.get("gol_sta_drain", 0)
-	relic_fury_gain       = roundi(22.0 * p_mods.get("fury_gain_mult", 1.0))
-	relic_home_roubo_fin  = p_mods.get("roubo_fin_bonus", 0)
-	relic_hand_size       = p_mods.get("hand_size", 5)
-	sta_max["home"]       = clampi(STA_MAX + p_mods.get("sta_bonus", 0), 1, 200)
-	sta["home"]           = sta_max["home"]
-	saves["home"]        += p_mods.get("starting_saves", 0)
-	bar_max["home"]["F"]  = maxi(2, bar_max["home"]["F"] - p_mods.get("fin_bar_reduction", 0))
-	bar_max["home"]["E"]  = maxi(1, bar_max["home"]["E"] - p_mods.get("def_bar_reduction", 0))
-	energy_max           += p_mods.get("energy_bonus", 0)
-	energy                = energy_max
-	bars["home"]["C"]     = mini(CD_CAP, p_mods.get("ctrl_bonus", 0))
+	# --- aplicar passiva da fera + relíquias ---
+	relic_gol_drain        = p_mods.get("gol_sta_drain", 0)
+	relic_home_roubo_fin   = p_mods.get("roubo_fin_bonus", 0)
+	relic_home_roubo_ctrl  = p_mods.get("roubo_ctrl_bonus", 0)
+	relic_impact_sta       = p_mods.get("impact_sta_bonus", 0)
+	relic_hand_size        = p_mods.get("hand_size", 5)
+	sta_max["home"]        = clampi(STA_MAX + p_mods.get("sta_bonus", 0), 1, 200)
+	sta["home"]            = sta_max["home"]
+	saves["home"]         += p_mods.get("starting_saves", 0)
+	bar_max["home"]["F"]   = maxi(2, bar_max["home"]["F"] - p_mods.get("fin_bar_reduction", 0))
+	bar_max["home"]["E"]   = maxi(1, bar_max["home"]["E"] - p_mods.get("def_bar_reduction", 0))
+	energy_max            += p_mods.get("energy_bonus", 0)
+	energy                 = energy_max
+	bars["home"]["C"]      = mini(CD_CAP, p_mods.get("ctrl_bonus", 0))
+	bars["home"]["F"]      = mini(FMAXCAP, p_mods.get("fin_start_bonus", 0))
 	_log("🏟️ %s x %s · %d turnos" % [_nm("home"), _nm("away"), TURNS])
 	start_turn()
 
@@ -129,22 +126,10 @@ func play_card(idx: int) -> bool:
 	hand.remove_at(idx)
 	return true
 
-func arm_super() -> void:
-	if busy or super_name == "": return
-	if super_armed != "":
-		super_armed = ""
-	else:
-		if fury < 100: return
-		super_armed = super_name
-
 ## Resolve o turno (IA joga, depois roubo/chute/defesa/fôlego). NÃO compra a mão nova.
 ## (a flag `busy` é gerida pelo Main durante o delay de resolução)
 func end_turn() -> void:
 	if over: return
-	if super_armed != "":
-		_apply_super(super_armed)
-		fury = 0
-		super_armed = ""
 	for c in enemy_plan.get("cards", []):
 		_apply_card("away", c)
 	if enemy_plan.get("cards", []).size() > 0:
@@ -171,23 +156,8 @@ func _apply_card(side: String, c: Dictionary) -> void:
 	b["D"] = mini(CD_CAP, b["D"] + c.get("D", 0))
 	if c.has("sta"):
 		var o := _opp(side)
-		sta[o] = clampi(sta[o] - c["sta"], 0, sta_max[o])
-
-func _apply_super(id: String) -> void:
-	var b: Dictionary = bars["home"]
-	match id:
-		"bicuda":
-			b["F"] += 20
-		"casco":
-			b["E"] += bar_max["home"]["E"]
-			b["C"] += 12
-			saves["home"] += 1
-		"voo":
-			b["D"] += 20
-			b["C"] += 12
-		"mordida":
-			sta["away"] = clampi(sta["away"] - 28, 0, sta_max["away"])
-	_log("⚡ SUPER: %s!" % id)
+		var extra: int = relic_impact_sta if side == "home" else 0
+		sta[o] = clampi(sta[o] - (c["sta"] + extra), 0, sta_max[o])
 
 func _prio(c: Dictionary, has_ball: bool) -> int:
 	if has_ball:
@@ -241,6 +211,7 @@ func _resolve_turn() -> void:
 		bars[d0]["D"] = 0
 		if d0 == "home":
 			bars["home"]["F"] = mini(FMAXCAP, bars["home"]["F"] + relic_home_roubo_fin)
+			bars["home"]["C"] = mini(CD_CAP, bars["home"]["C"] + relic_home_roubo_ctrl)
 		_log("✋ %s ROUBOU a bola!" % _nm(d0))
 	var p := possession
 	var d := _opp(p)
@@ -262,10 +233,9 @@ func _resolve_turn() -> void:
 		if bars[s]["E"] >= bar_max[s]["E"]:
 			bars[s]["E"] = 0
 			saves[s] += 1
-	# 4) fôlego + fúria + fim
+	# 4) fôlego + fim
 	sta["home"] = clampi(sta["home"] - FATIGUE, 0, sta_max["home"])
 	sta["away"] = clampi(sta["away"] - FATIGUE, 0, sta_max["away"])
-	fury = mini(100, fury + relic_fury_gain)
 	turn += 1
 	_check_end()
 

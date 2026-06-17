@@ -183,7 +183,17 @@ func _node_btn(c_idx: int, l_idx: int, node: Dictionary, reachable: Array) -> Co
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(inner)
 
-	inner.add_child(UIHelpers.clbl(NODE_ICONS.get(tp, "?"), 26, Color.WHITE))
+	var ntex := UIHelpers.icon_tex("node_" + tp)
+	if ntex != null:
+		var nr := TextureRect.new()
+		nr.texture = ntex
+		nr.custom_minimum_size = Vector2(40, 40)
+		nr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		nr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		nr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(nr)
+	else:
+		inner.add_child(UIHelpers.clbl(NODE_ICONS.get(tp, "?"), 26, Color.WHITE))
 	inner.add_child(UIHelpers.clbl(tp.to_upper(), 9, UIHelpers.RUNE2))
 
 	# nome do inimigo (para nós de luta)

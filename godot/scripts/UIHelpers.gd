@@ -91,3 +91,108 @@ static func ignore_mouse(n: Node) -> void:
 		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for ch in n.get_children():
 		ignore_mouse(ch)
+
+# ==========================================================================
+#  ASSETS (texturas com fallback) + FONTES
+# ==========================================================================
+const A_BG     := "res://assets/bg/"
+const A_BEAST  := "res://assets/beasts/"
+const A_CARD   := "res://assets/cards/"
+const A_ICON   := "res://assets/icons/"
+const A_RELIC  := "res://assets/icons/relics/"
+const A_FRAME  := "res://assets/frames/"
+const A_FONT   := "res://assets/fonts/"
+
+## Carrega uma textura se existir (e estiver importada); senão devolve null.
+static func tex(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		var r: Resource = load(path)
+		if r is Texture2D:
+			return r
+	return null
+
+static func beast_tex(art: String) -> Texture2D:
+	if art == "": return null
+	return tex(A_BEAST + art + ".png")
+
+static func card_tex(id: String) -> Texture2D:
+	return tex(A_CARD + id + ".png")
+
+static func icon_tex(name: String) -> Texture2D:
+	return tex(A_ICON + name + ".png")
+
+static func relic_tex(id: String) -> Texture2D:
+	return tex(A_RELIC + id + ".png")
+
+static func frame_tex(name: String) -> Texture2D:
+	return tex(A_FRAME + name + ".png")
+
+## StyleBox de textura 9-slice (fallback pro StyleBoxFlat se a textura faltar).
+static func sbt(frame_name: String, margin: int, ph: int, pv: int,
+		fb_bg: Color = PANEL_A, fb_border: Color = BRONZE) -> StyleBox:
+	var t := frame_tex(frame_name)
+	if t == null:
+		return sbf(fb_bg, fb_border, 2, 11, ph, pv)
+	var s := StyleBoxTexture.new()
+	s.texture = t
+	s.set_texture_margin_all(margin)
+	s.content_margin_left = ph; s.content_margin_right = ph
+	s.content_margin_top = pv;  s.content_margin_bottom = pv
+	return s
+
+## Painel com moldura de textura (panel.png) e fallback.
+static func framed_t(ph: int = 10, pv: int = 9) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", sbt("panel", 28, ph, pv))
+	return p
+
+## TextureRect que preenche mantendo proporção (pra arte de fera/fundo).
+static func sprite(t: Texture2D, keep_aspect: bool = true) -> TextureRect:
+	var r := TextureRect.new()
+	r.texture = t
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if keep_aspect else TextureRect.STRETCH_SCALE
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+# ---- Fontes (carregadas uma vez) ----
+static var _f_title: FontFile = null
+static var _f_body: FontFile = null
+static var _f_loaded := false
+
+## Carrega o TTF direto (load_dynamic_font), driblando o sistema de importação.
+static func _dyn_font(path: String) -> FontFile:
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FontFile.new()
+	if f.load_dynamic_font(path) != OK:
+		return null
+	return f
+
+static func _load_fonts() -> void:
+	if _f_loaded: return
+	_f_loaded = true
+	_f_title = _dyn_font(A_FONT + "Cinzel.ttf")
+	_f_body = _dyn_font(A_FONT + "Oswald.ttf")
+
+static func title_font() -> FontFile:
+	_load_fonts(); return _f_title
+
+static func body_font() -> FontFile:
+	_load_fonts(); return _f_body
+
+## Tema global: fonte condensada (Oswald) como padrão de toda a UI.
+static func make_theme() -> Theme:
+	var th := Theme.new()
+	var b := body_font()
+	if b != null:
+		th.default_font = b
+	return th
+
+## Rótulo de título com fonte serifada (Cinzel) — usa fallback se faltar.
+static func tlbl(txt: String, sz: int, col: Color) -> Label:
+	var l := clbl(txt, sz, col)
+	var f := title_font()
+	if f != null:
+		l.add_theme_font_override("font", f)
+	return l

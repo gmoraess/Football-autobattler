@@ -12,6 +12,7 @@ var current_screen: Control = null
 func _ready() -> void:
 	randomize()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	theme = UIHelpers.make_theme()
 	_show_beast_select()
 
 # ==========================================================================

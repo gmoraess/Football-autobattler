@@ -64,7 +64,13 @@ func _relic_card(relic_id: String) -> Control:
 	var ic_c := CenterContainer.new()
 	ic_c.custom_minimum_size = Vector2(60, 0)
 	ic_c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ic_c.add_child(_ign(UIHelpers.clbl(data["ic"], 30, Color.WHITE)))
+	var rtex := UIHelpers.relic_tex(relic_id)
+	if rtex != null:
+		var rr := UIHelpers.sprite(rtex)
+		rr.custom_minimum_size = Vector2(48, 48)
+		ic_c.add_child(rr)
+	else:
+		ic_c.add_child(_ign(UIHelpers.clbl(data["ic"], 30, Color.WHITE)))
 	h.add_child(ic_c)
 
 	var tv := VBoxContainer.new()

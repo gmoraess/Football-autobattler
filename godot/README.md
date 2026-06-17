@@ -15,7 +15,7 @@ Linha de comando: `godot --path .` (roda) · `godot --path . -e` (editor).
 
 `Seleção de fera → Mapa (3 atos) → Partida / Evento / Relíquia / Loja → Vitória ou Derrota`
 
-- **Escolha sua fera** (Couraça, Górtax, Aurélio ou Mandíbula) — cada uma tem baralho e Super próprios.
+- **Escolha sua fera** (Cuirass, Zab, Zak ou Foot) — cada uma tem baralho e uma passiva única.
 - No **mapa**, clique num nó iluminado pra avançar (bifurcações estilo Slay the Spire).
 - Na **partida**: clique nas **cartas** pra encher as 4 barras (gasta energia), depois **▶ FIM DE TURNO**.
   - Desarme > Controle do oponente → **rouba a bola**.

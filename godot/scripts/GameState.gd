@@ -7,29 +7,33 @@ extends Node
 # ==========================================================================
 
 const BEASTS := {
-	"couraca": {
-		"name": "Couraça", "crest": "🛡", "type": "Tanque",
-		"super": "casco", "super_name": "Casco Imortal",
-		"lore": "O tatu blindado. Muralha viva — difícil de furar, mais difícil ainda de vencer.",
+	"cuirass": {
+		"name": "Cuirass", "crest": "🛡", "art": "cuirass", "type": "Tanque",
+		"passive": "casco", "passive_name": "Casco",
+		"passive_desc": "Começa com +1 defesa guardada e a barra de Defesa enche mais fácil.",
+		"lore": "O tatu couraçado. Muralha viva — difícil de furar, mais difícil ainda de vencer.",
 		"deck_spec": [["defesa",4],["bloqueio",3],["desarme",2],["marcacao",2],["passe",2],["finaliza",2],["pancada",1]]
 	},
-	"gortax": {
-		"name": "Górtax", "crest": "🐂", "type": "Artilheiro",
-		"super": "bicuda", "super_name": "Bicuda Imortal",
-		"lore": "O minotauro implacável. Uma finalização e o gol é certo.",
-		"deck_spec": [["finaliza",4],["cruzamento",3],["lancamento",2],["bicuda",2],["passe",2],["defesa",1],["desarme",2]]
-	},
-	"aurelio": {
-		"name": "Aurélio", "crest": "🦅", "type": "Maestro",
-		"super": "voo", "super_name": "Voo Rasante",
-		"lore": "O falcão das alturas. Controla o jogo antes de chegar à grande área.",
-		"deck_spec": [["passe",3],["drible",2],["visao",2],["meialua",2],["finaliza",2],["desarme",2],["defesa",2],["bloqueio",1]]
-	},
-	"mandibula": {
-		"name": "Mandíbula", "crest": "🐊", "type": "Impacto",
-		"super": "mordida", "super_name": "Mordida Selvagem",
-		"lore": "O jacaré devastador. Vence pelo fôlego — ou pela dor.",
+	"zab": {
+		"name": "Zab", "crest": "🐺", "art": "zab", "type": "Caçador",
+		"passive": "matilha", "passive_name": "Matilha",
+		"passive_desc": "Cartas de impacto drenam +2 de fôlego extra. Vence pelo desgaste.",
+		"lore": "O lobo implacável. Persegue a presa até ela cair de exaustão.",
 		"deck_spec": [["carrinho",3],["pancada",3],["ombro",2],["solada",2],["desarme",2],["passe",2],["finaliza",2]]
+	},
+	"zak": {
+		"name": "Zak", "crest": "🐆", "art": "zak", "type": "Veloz",
+		"passive": "disparada", "passive_name": "Disparada",
+		"passive_desc": "Ao roubar a bola, dispara contra-ataque: +8 Controle e +4 Finalização.",
+		"lore": "O guepardo relâmpago. No instante do bote, dispara num contra-ataque fulminante.",
+		"deck_spec": [["desarme",3],["botinha",2],["carrinho",2],["passe",3],["drible",2],["lancamento",2],["finaliza",1]]
+	},
+	"foot": {
+		"name": "Foot", "crest": "🐓", "art": "foot", "type": "Artilheiro",
+		"passive": "esporao", "passive_name": "Esporão",
+		"passive_desc": "A barra de Finalização enche mais fácil. Chuta com mais frequência.",
+		"lore": "O galo de briga. Esporão afiado e gol no instinto.",
+		"deck_spec": [["finaliza",4],["cruzamento",3],["lancamento",2],["bicuda",2],["passe",2],["defesa",1],["desarme",2]]
 	},
 }
 
@@ -41,7 +45,7 @@ const RELICS := {
 	"luvas_goleiro":   {"name":"Luvas do Goleiro",  "ic":"🧤", "desc":"Barra de Defesa: máx −1."},
 	"chuteira_rapida": {"name":"Chuteira Rápida",   "ic":"⚡", "desc":"+1 energia por turno."},
 	"amuleto_gol":     {"name":"Amuleto do Gol",    "ic":"⚽", "desc":"Gol drena +2 STA extra do oponente."},
-	"cristal_fury":    {"name":"Cristal da Fúria",  "ic":"💎", "desc":"Super carrega 1,5× mais rápido."},
+	"cristal_fury":    {"name":"Cristal da Fúria",  "ic":"💎", "desc":"Começa com Finalização +4 nas barras."},
 	"capa_sombria":    {"name":"Capa Sombria",      "ic":"🌑", "desc":"Começa com Controle +5 nas barras."},
 	"talisma_ouro":    {"name":"Talismã de Ouro",   "ic":"🪙", "desc":"+5 Ouro ao vencer partida."},
 	"sindrome_fera":   {"name":"Síndrome da Fera",  "ic":"🐾", "desc":"[Sinergia] Roubar a bola: Finalização +2."},
@@ -189,6 +193,25 @@ func generate_map() -> void:
 
 		map_data.append(act_cols)
 
+# Inimigos com arte dedicada (o campo "art" casa com assets/beasts/<art>.png)
+const NORMAL_ENEMIES := [
+	{"name":"Rinoceronte Sombrio", "crest":"🦏", "art":"rinoceronte"},
+	{"name":"Lobo da Névoa",       "crest":"🐺", "art":"lobo"},
+	{"name":"Urso do Norte",       "crest":"🐻", "art":"urso"},
+	{"name":"Escorpião Ferreiro",  "crest":"🦂", "art":"escorpiao"},
+	{"name":"Arara Carmesim",      "crest":"🦜", "art":"arara"},
+]
+const ELITE_ENEMIES := [
+	{"name":"Elefante de Guerra",  "crest":"🐘", "art":"elite_elefante"},
+	{"name":"Gorila das Sombras",  "crest":"🦍", "art":"elite_gorila"},
+	{"name":"Tigre Relâmpago",     "crest":"🐯", "art":"elite_tigre"},
+]
+const BOSSES := [
+	{"name":"Mantis da Tempestade",        "crest":"🦗", "art":"boss_mantis",  "deck_key":"boss0"},
+	{"name":"Leão Dourado",                 "crest":"🦁", "art":"boss_leao",    "deck_key":"boss1"},
+	{"name":"Quetzal, a Serpente Imortal",  "crest":"🐉", "art":"boss_quetzal", "deck_key":"boss2"},
+]
+
 func _mk_node(tp: String, diff: float, a: int, elite: bool) -> Dictionary:
 	var enemy: Dictionary = {}
 	if tp in ["partida", "elite"]:
@@ -196,30 +219,13 @@ func _mk_node(tp: String, diff: float, a: int, elite: bool) -> Dictionary:
 	return {"type": tp, "diff": diff, "enemy": enemy, "visited": false, "deck_key": "elite" if elite else "normal"}
 
 func _mk_boss(a: int, diff: float) -> Dictionary:
-	var bosses := [
-		{"name":"Mantis da Tempestade", "crest":"🦗", "super":"voo",    "deck_key":"boss0"},
-		{"name":"Leão Dourado",          "crest":"🦁", "super":"casco",  "deck_key":"boss1"},
-		{"name":"Quetzal, a Serpente Imortal", "crest":"🐉", "super":"bicuda", "deck_key":"boss2"},
-	]
-	var e: Dictionary = bosses[a].duplicate()
+	var e: Dictionary = BOSSES[a % BOSSES.size()].duplicate()
 	return {"type":"boss", "diff": diff, "enemy": e, "visited": false, "deck_key": e["deck_key"]}
 
 func _random_enemy(a: int, elite: bool) -> Dictionary:
-	var pools := [
-		[{"name":"Rinoceronte Sombrio","crest":"🦏","super":""},
-		 {"name":"Lobo da Névoa",       "crest":"🐺","super":""},
-		 {"name":"Urso do Norte",       "crest":"🐻","super":""}],
-		[{"name":"Escorpião Ferreiro",  "crest":"🦂","super":"bicuda"},
-		 {"name":"Tigre Relâmpago",     "crest":"🐯","super":"voo"},
-		 {"name":"Gorila das Sombras",  "crest":"🦍","super":"casco"}],
-		[{"name":"Dragão de Jade",      "crest":"🐲","super":"bicuda"},
-		 {"name":"Serpente Estelar",    "crest":"🐍","super":"mordida"},
-		 {"name":"Fênix das Cinzas",    "crest":"🔥","super":"voo"}],
-	]
-	var e: Dictionary = pools[a][randi() % pools[a].size()].duplicate()
 	if elite:
-		e["name"] = "Elite — " + e["name"]
-	return e
+		return ELITE_ENEMIES[randi() % ELITE_ENEMIES.size()].duplicate()
+	return NORMAL_ENEMIES[randi() % NORMAL_ENEMIES.size()].duplicate()
 
 func enemy_deck(deck_key: String) -> Array:
 	var specs := {"normal":DECK_NORMAL, "elite":DECK_ELITE,
@@ -294,14 +300,23 @@ func random_relic_choices(n: int = 3) -> Array:
 	available.shuffle()
 	return available.slice(0, mini(n, available.size()))
 
-func get_relic_mods() -> Dictionary:
+## Modificadores aplicados em MatchEngine.begin() — passiva da fera + relíquias + evento.
+func get_match_mods() -> Dictionary:
 	var m := {
 		"sta_bonus": sta_bonus, "starting_saves": 0,
 		"fin_bar_reduction": 0, "def_bar_reduction": 0,
 		"energy_bonus": 0, "hand_size": 5,
-		"gol_sta_drain": 0, "fury_gain_mult": 1.0,
-		"ctrl_bonus": 0, "roubo_fin_bonus": 0,
+		"gol_sta_drain": 0, "ctrl_bonus": 0,
+		"roubo_fin_bonus": 0, "roubo_ctrl_bonus": 0,
+		"impact_sta_bonus": 0, "fin_start_bonus": 0,
 	}
+	# --- passiva da fera (sempre ativa) ---
+	match beast.get("passive", ""):
+		"casco":     m["starting_saves"] += 1; m["def_bar_reduction"] += 1
+		"matilha":   m["impact_sta_bonus"] += 2
+		"disparada": m["roubo_ctrl_bonus"] += 8; m["roubo_fin_bonus"] += 4
+		"esporao":   m["fin_bar_reduction"] += 1
+	# --- relíquias ---
 	for r in relics:
 		match r:
 			"escudo_antigo":   m["starting_saves"] += 1
@@ -311,7 +326,7 @@ func get_relic_mods() -> Dictionary:
 			"luvas_goleiro":   m["def_bar_reduction"] += 1
 			"chuteira_rapida": m["energy_bonus"] += 1
 			"amuleto_gol":     m["gol_sta_drain"] += 2
-			"cristal_fury":    m["fury_gain_mult"] *= 1.5
+			"cristal_fury":    m["fin_start_bonus"] += 4
 			"capa_sombria":    m["ctrl_bonus"] += 5
 			"sindrome_fera":   m["roubo_fin_bonus"] += 2
 	sta_bonus = 0  # consome o bônus de STA de evento após repassar

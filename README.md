@@ -23,10 +23,10 @@ godot --path godot -e         # abre o editor
 ## 🎮 O loop de jogo
 
 1. **Escolha sua fera** (4 jogáveis, cada uma com baralho e Super Lance próprios):
-   - 🛡 **Couraça** (tatu) — Tanque · *Casco Imortal*
-   - 🐂 **Górtax** (minotauro) — Artilheiro · *Bicuda Imortal*
-   - 🦅 **Aurélio** (falcão) — Maestro/controle · *Voo Rasante*
-   - 🐊 **Mandíbula** (jacaré) — Impacto/fôlego · *Mordida Selvagem*
+   - 🛡 **Cuirass** (tatu) — Tanque · passiva *Casco* (defesa reforçada)
+   - 🐺 **Zab** (lobo) — Caçador · passiva *Matilha* (impacto drena fôlego)
+   - 🐆 **Zak** (guepardo) — Veloz · passiva *Disparada* (contra-ataque ao roubar)
+   - 🐓 **Foot** (galo) — Artilheiro · passiva *Esporão* (finaliza mais fácil)
 
 2. **Suba no mapa roguelike** (estilo Slay the Spire): **3 atos**, cada um com colunas e bifurcações. Nós de ⚽ partida · 💀 elite · ❓ evento · 🎁 baú de relíquia (garantido) · 🛒 loja · 👑 chefe do ato.
 
@@ -47,7 +47,7 @@ Cada fera tem 4 barras que **acumulam entre turnos**:
 
 - **Posse de bola:** com a bola, foque Finalização + Controle; sem ela, Desarme + Defesa.
 - **Energia + cartas:** ~3 de energia/turno; cada carta custa energia e enche barras. Cartas de impacto drenam **fôlego** (vida) do oponente.
-- **Super Lance:** uma barra de Fúria carrega ao longo da partida e libera o golpe-assinatura da fera.
+- **Passiva da fera:** cada fera tem uma habilidade passiva sempre ativa (sem botão) que molda seu estilo — defesa, desgaste, contra-ataque ou volume de gols.
 - **Intenção do inimigo:** telegrafada por ícone (estilo Slay the Spire).
 
 ### Condições de vitória (3)

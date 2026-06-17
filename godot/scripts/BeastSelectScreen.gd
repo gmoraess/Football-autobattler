@@ -39,16 +39,16 @@ func _ready() -> void:
 	grid.add_theme_constant_override("v_separation", 12)
 	col.add_child(grid)
 
-	for id in ["couraca", "gortax", "aurelio", "mandibula"]:
+	for id in ["cuirass", "zab", "zak", "foot"]:
 		grid.add_child(_beast_card(id))
 
 	# Rodapé
-	col.add_child(UIHelpers.clbl("Escolha define seu baralho inicial e Super Lance.", 10, UIHelpers.RUNE2))
+	col.add_child(UIHelpers.clbl("Cada fera define seu baralho inicial e uma passiva única.", 10, UIHelpers.RUNE2))
 
 func _beast_card(id: String) -> Control:
 	var data: Dictionary = GameState.BEASTS[id]
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(0, 210)
+	btn.custom_minimum_size = Vector2(0, 270)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.add_theme_stylebox_override("normal",  UIHelpers.sbf(UIHelpers.PANEL_A, UIHelpers.BRONZE, 2, 14, 0, 0))
 	btn.add_theme_stylebox_override("hover",   UIHelpers.sbf(UIHelpers.PANEL_A, UIHelpers.GOLD,   2, 14, 0, 0))
@@ -61,32 +61,46 @@ func _beast_card(id: String) -> Control:
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(inner)
 
-	# crest
+	# retrato (arte da fera ou emoji em moldura)
+	var art := UIHelpers.beast_tex(data.get("art", ""))
 	var crest_c := CenterContainer.new()
 	crest_c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var crest_pnl := PanelContainer.new()
-	crest_pnl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	crest_pnl.custom_minimum_size = Vector2(80, 80)
-	var sb := UIHelpers.sbf(UIHelpers.HOME_KIT, UIHelpers.BRONZE, 2, 40, 0, 0)
-	crest_pnl.add_theme_stylebox_override("panel", sb)
-	var cc := CenterContainer.new()
-	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	crest_pnl.add_child(cc)
-	cc.add_child(_ign(UIHelpers.clbl(data["crest"], 40, Color.WHITE)))
-	crest_c.add_child(crest_pnl)
+	if art != null:
+		var spr := UIHelpers.sprite(art)
+		spr.custom_minimum_size = Vector2(110, 110)
+		crest_c.add_child(spr)
+	else:
+		var crest_pnl := PanelContainer.new()
+		crest_pnl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		crest_pnl.custom_minimum_size = Vector2(80, 80)
+		var sb := UIHelpers.sbf(UIHelpers.HOME_KIT, UIHelpers.BRONZE, 2, 40, 0, 0)
+		crest_pnl.add_theme_stylebox_override("panel", sb)
+		var cc := CenterContainer.new()
+		cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		crest_pnl.add_child(cc)
+		cc.add_child(_ign(UIHelpers.clbl(data["crest"], 40, Color.WHITE)))
+		crest_c.add_child(crest_pnl)
 	inner.add_child(_ign(crest_c))
 
-	inner.add_child(_ign(UIHelpers.clbl(data["name"], 16, UIHelpers.GOLD2)))
+	inner.add_child(_ign(UIHelpers.tlbl(data["name"], 18, UIHelpers.GOLD2)))
 
 	var type_lbl := UIHelpers.clbl(data["type"], 10, UIHelpers.RUNE2)
 	type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(type_lbl)
 
-	var super_pnl := PanelContainer.new()
-	super_pnl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	super_pnl.add_theme_stylebox_override("panel", UIHelpers.sbf(Color("1a0d04"), UIHelpers.GOLD, 1, 6, 6, 3))
-	super_pnl.add_child(_ign(UIHelpers.clbl("⚡ " + data["super_name"], 10, UIHelpers.GOLD2)))
-	inner.add_child(_ign(super_pnl))
+	var pass_pnl := PanelContainer.new()
+	pass_pnl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pass_pnl.add_theme_stylebox_override("panel", UIHelpers.sbf(Color("1a0d04"), UIHelpers.GOLD, 1, 6, 6, 4))
+	var pv := VBoxContainer.new()
+	pv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pv.add_theme_constant_override("separation", 2)
+	pv.add_child(_ign(UIHelpers.clbl("✦ " + data["passive_name"], 11, UIHelpers.GOLD2)))
+	var pd := UIHelpers.clbl(data["passive_desc"], 8, UIHelpers.RUNE)
+	pd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pv.add_child(pd)
+	pass_pnl.add_child(pv)
+	inner.add_child(_ign(pass_pnl))
 
 	var lore := UIHelpers.clbl(data["lore"], 9, UIHelpers.RUNE2)
 	lore.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
