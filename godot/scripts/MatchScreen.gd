@@ -104,6 +104,7 @@ func render() -> void:
 	root.add_child(col)
 
 	col.add_child(_scoreboard())
+	col.add_child(_field_strip())
 	var mid := _arena_row()
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(mid)
@@ -114,22 +115,22 @@ func render() -> void:
 
 # --- placar superior ---
 func _scoreboard() -> Control:
-	var panel := UIHelpers.framed_t(12, 8)
+	var panel := UIHelpers.framed_t(16, 10)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 14)
+	h.add_theme_constant_override("separation", 16)
+	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(h)
 	h.add_child(_team_head("home"))
 	var mid := VBoxContainer.new()
 	mid.alignment = BoxContainer.ALIGNMENT_CENTER
-	mid.custom_minimum_size = Vector2(220, 0)
-	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 42, Color("f4eee2"))
+	mid.custom_minimum_size = Vector2(200, 0)
+	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 56, Color("f4eee2"))
 	mid.add_child(score_lbl)
 	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
 		_pop(score_lbl, 1.5)
 	var trn := "TURNO %d / %d" % [mini(engine.turn, MatchEngine.TURNS), MatchEngine.TURNS]
 	if engine.sudden_death: trn += " · MORTE SÚBITA"
-	mid.add_child(UIHelpers.clbl(trn, 10, UIHelpers.RUNE2))
-	mid.add_child(_minimap())
+	mid.add_child(UIHelpers.clbl(trn, 11, UIHelpers.GOLD))
 	h.add_child(mid)
 	h.add_child(_team_head("away"))
 	return panel
@@ -196,49 +197,78 @@ func _sta_bar(side: String) -> Control:
 	v.add_child(track)
 	return v
 
-const MM_W := 168.0
-const MM_H := 64.0
+const MM_W := 330.0
+const MM_H := 118.0
+
+## Faixa centralizada com o campo (entre o placar e a arena).
+func _field_strip() -> Control:
+	var cc := CenterContainer.new()
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UIHelpers.sbf(Color("0c1a0c"), UIHelpers.BRONZE, 2, 8, 5, 5))
+	box.add_child(_minimap())
+	cc.add_child(box)
+	return cc
 
 func _minimap() -> Control:
+	var W := MM_W
+	var H := MM_H
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(MM_W, MM_H)
+	c.custom_minimum_size = Vector2(W, H)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var field := ColorRect.new(); field.color = Color("236e34")
+	var field := ColorRect.new(); field.color = Color("2f8a3c")
 	field.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.add_child(field)
-	var line := Color(1, 1, 1, 0.4)
-	# linha central
-	_rect(c, Vector2(MM_W / 2 - 0.5, 3), Vector2(1, MM_H - 6), line)
-	# círculo central
-	var circ := Panel.new()
-	circ.size = Vector2(22, 22); circ.position = Vector2(MM_W / 2 - 11, MM_H / 2 - 11)
-	circ.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var csb := StyleBoxFlat.new(); csb.bg_color = Color(0, 0, 0, 0)
-	csb.border_color = line; csb.set_border_width_all(1); csb.set_corner_radius_all(11)
-	circ.add_theme_stylebox_override("panel", csb)
-	c.add_child(circ)
-	# áreas (penalty boxes) — contornos
-	_outline(c, Vector2(3, MM_H / 2 - 15), Vector2(18, 30), line)
-	_outline(c, Vector2(MM_W - 21, MM_H / 2 - 15), Vector2(18, 30), line)
+	# listras de grama
+	for i in 8:
+		if i % 2 == 0:
+			_rect(c, Vector2(i * W / 8.0, 0), Vector2(W / 8.0, H), Color(1, 1, 1, 0.05))
+	var line := Color(1, 1, 1, 0.6)
+	# linha central + círculo
+	_rect(c, Vector2(W / 2 - 1, 5), Vector2(2, H - 10), line)
+	_circle_outline(c, Vector2(W / 2, H / 2), 28, line)
+	_rect(c, Vector2(W / 2 - 2, H / 2 - 2), Vector2(4, 4), line)  # ponto central
+	# grande área + pequena área (os dois lados)
+	_outline(c, Vector2(2, H / 2 - 36), Vector2(44, 72), line)
+	_outline(c, Vector2(W - 46, H / 2 - 36), Vector2(44, 72), line)
+	_outline(c, Vector2(2, H / 2 - 18), Vector2(20, 36), line)
+	_outline(c, Vector2(W - 22, H / 2 - 18), Vector2(20, 36), line)
 	# gols
-	_rect(c, Vector2(0, MM_H / 2 - 6), Vector2(3, 12), Color(1, 1, 1, 0.75))
-	_rect(c, Vector2(MM_W - 3, MM_H / 2 - 6), Vector2(3, 12), Color(1, 1, 1, 0.75))
-	# rótulos GK
-	var gk1 := UIHelpers.lbl("GK", 7, Color(1, 1, 1, 0.7)); gk1.position = Vector2(5, MM_H / 2 - 16); c.add_child(gk1)
-	var gk2 := UIHelpers.lbl("GK", 7, Color(1, 1, 1, 0.7)); gk2.position = Vector2(MM_W - 20, MM_H / 2 - 16); c.add_child(gk2)
-	# jogadores
-	var hp := [[20, 30], [20, 54], [36, 42], [48, 30], [48, 54]]
-	var ap := [[120, 30], [120, 54], [132, 42], [148, 30], [148, 54]]
-	for pos in hp: _dot(c, pos[0], pos[1], UIHelpers.HOME_KIT)
-	for pos in ap: _dot(c, pos[0], pos[1], UIHelpers.AWAY_KIT)
+	_rect(c, Vector2(0, H / 2 - 10), Vector2(3, 20), Color(1, 1, 1, 0.9))
+	_rect(c, Vector2(W - 3, H / 2 - 10), Vector2(3, 20), Color(1, 1, 1, 0.9))
+	# GK
+	var gk1 := UIHelpers.lbl("GK", 9, Color(1, 1, 1, 0.85)); gk1.position = Vector2(10, H / 2 - 42); c.add_child(gk1)
+	var gk2 := UIHelpers.lbl("GK", 9, Color(1, 1, 1, 0.85)); gk2.position = Vector2(W - 30, H / 2 - 42); c.add_child(gk2)
+	# formações (4-1) por lado
+	var hp := [[26, H / 2], [78, H / 2 - 32], [78, H / 2 + 32], [126, H / 2], [164, H / 2 - 24]]
+	var ap := [[W - 26, H / 2], [W - 78, H / 2 - 32], [W - 78, H / 2 + 32], [W - 126, H / 2], [W - 164, H / 2 + 24]]
+	for p in hp: _bdot(c, p[0], p[1], UIHelpers.HOME_KIT)
+	for p in ap: _bdot(c, p[0], p[1], UIHelpers.AWAY_KIT)
 	# bola
-	var bx: float = MM_W * 0.34 if engine.possession == "home" else MM_W * 0.66
+	var bx: float = W * 0.42 if engine.possession == "home" else W * 0.58
 	var ball := ColorRect.new(); ball.color = Color.WHITE
-	ball.size = Vector2(7, 7); ball.position = Vector2(bx - 3, MM_H * 0.5 - 3)
+	ball.size = Vector2(9, 9); ball.position = Vector2(bx - 4, H * 0.5 - 4)
 	ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.add_child(ball)
 	return c
+
+func _circle_outline(parent: Control, center: Vector2, r: float, col: Color) -> void:
+	var p := Panel.new()
+	p.position = center - Vector2(r, r); p.size = Vector2(r * 2, r * 2)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = col; sb.set_border_width_all(1); sb.set_corner_radius_all(int(r))
+	p.add_theme_stylebox_override("panel", sb)
+	parent.add_child(p)
+
+func _bdot(parent: Control, x: float, y: float, col: Color) -> void:
+	var p := Panel.new()
+	p.position = Vector2(x - 6, y - 6); p.size = Vector2(12, 12)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new(); sb.bg_color = col
+	sb.border_color = Color(0, 0, 0, 0.5); sb.set_border_width_all(1); sb.set_corner_radius_all(6)
+	p.add_theme_stylebox_override("panel", sb)
+	parent.add_child(p)
 
 func _rect(parent: Control, pos: Vector2, size: Vector2, col: Color) -> void:
 	var r := ColorRect.new(); r.color = col; r.position = pos; r.size = size
