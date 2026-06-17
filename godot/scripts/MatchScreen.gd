@@ -170,20 +170,25 @@ func _score_plate() -> Control:
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		c.add_child(tr)
-	var v := VBoxContainer.new()
-	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_theme_constant_override("separation", 0)
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 46, Color("f4eee2"))
+	# CenterContainer garante o placar no centro exato da placa
+	var cc := CenterContainer.new()
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var score_lbl := UIHelpers.tlbl("%d : %d" % [engine.score["home"], engine.score["away"]], 44, Color("f4eee2"))
 	score_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(score_lbl)
+	score_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cc.add_child(score_lbl)
+	c.add_child(cc)
 	if engine.score["home"] != _prev_score["home"] or engine.score["away"] != _prev_score["away"]:
 		_pop(score_lbl, 1.4)
+	# turno: rótulo pequeno ancorado embaixo (não desloca o placar)
 	var trn := "TURNO %d / %d" % [mini(engine.turn, MatchEngine.TURNS), MatchEngine.TURNS]
 	if engine.sudden_death: trn += " · MS"
-	v.add_child(UIHelpers.clbl(trn, 9, UIHelpers.GOLD))
-	c.add_child(v)
+	var tlb := UIHelpers.clbl(trn, 9, UIHelpers.GOLD)
+	tlb.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	tlb.offset_top = -18
+	tlb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(tlb)
 	return c
 
 func _crest_rect() -> Control:
