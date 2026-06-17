@@ -60,6 +60,46 @@ static func gold_btn(txt: String) -> Button:
 	b.add_theme_stylebox_override("disabled",sbf(Color("4a3a20"),   Color("3c2b12"), 1, 9, 12, 11))
 	return b
 
+## Botão ORNAMENTADO usando a textura button_gold.png (fallback p/ gold_btn).
+static func ornate_btn(txt: String, fsize: int = 16) -> Button:
+	var t := frame_tex("button_gold")
+	if t == null:
+		return gold_btn(txt)
+	var b := Button.new()
+	b.text = txt
+	b.add_theme_font_size_override("font_size", fsize)
+	var tf := title_font()
+	if tf != null: b.add_theme_font_override("font", tf)
+	b.add_theme_color_override("font_color", Color("2a1606"))
+	b.add_theme_color_override("font_hover_color", Color("3a2008"))
+	b.add_theme_color_override("font_pressed_color", Color("2a1606"))
+	b.add_theme_stylebox_override("normal",  _btn_tex(t, Color.WHITE))
+	b.add_theme_stylebox_override("hover",   _btn_tex(t, Color(1.14, 1.14, 1.14)))
+	b.add_theme_stylebox_override("pressed", _btn_tex(t, Color(0.85, 0.85, 0.85)))
+	return b
+
+static func _btn_tex(t: Texture2D, mod: Color) -> StyleBoxTexture:
+	var s := StyleBoxTexture.new()
+	s.texture = t
+	s.set_texture_margin_all(30)
+	s.content_margin_left = 18; s.content_margin_right = 18
+	s.content_margin_top = 12; s.content_margin_bottom = 14
+	s.modulate_color = mod
+	return s
+
+## Tira escura full-width (topo/rodapé) com fio de ouro só na borda indicada.
+static func strip(border_top: int, border_bottom: int) -> PanelContainer:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.04, 0.03, 0.02, 0.66)
+	s.border_color = BRONZE
+	s.border_width_top = border_top
+	s.border_width_bottom = border_bottom
+	s.content_margin_left = 16; s.content_margin_right = 16
+	s.content_margin_top = 8;   s.content_margin_bottom = 8
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", s)
+	return p
+
 static func icon_btn(txt: String) -> Button:
 	var b := Button.new()
 	b.text = txt

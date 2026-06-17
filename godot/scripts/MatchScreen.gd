@@ -115,7 +115,7 @@ func render() -> void:
 
 # --- placar superior ---
 func _scoreboard() -> Control:
-	var panel := UIHelpers.framed_t(16, 10)
+	var panel := UIHelpers.strip(0, 2)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -141,7 +141,7 @@ func _crest_rect() -> Control:
 		return null
 	var cr := TextureRect.new()
 	cr.texture = crest
-	cr.custom_minimum_size = Vector2(54, 46)
+	cr.custom_minimum_size = Vector2(112, 66)
 	cr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	cr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	return cr
@@ -152,7 +152,7 @@ func _team_head(side: String) -> Control:
 	v.add_theme_constant_override("separation", 4)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	var nl := UIHelpers.tlbl(engine._nm(side), 19, Color("f3ece0"))
+	var nl := UIHelpers.tlbl(engine._nm(side), 23, Color("f3ece0"))
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var cr := _crest_rect()
 	if side == "home":
@@ -458,7 +458,7 @@ func _intent(icon: String) -> Control:
 
 # --- faixa inferior: energia | cartas | fim de turno ---
 func _bottom() -> Control:
-	var panel := UIHelpers.framed_t(10, 6)
+	var panel := UIHelpers.strip(2, 0)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 10)
 	panel.add_child(h)
@@ -486,9 +486,8 @@ func _bottom() -> Control:
 	if gr != null: icons.add_child(gr)
 	if icons.get_child_count() > 0:
 		right.add_child(icons)
-	var endb := UIHelpers.gold_btn("FIM DE TURNO")
-	endb.custom_minimum_size = Vector2(150, 0)
-	endb.add_theme_font_size_override("font_size", 16)
+	var endb := UIHelpers.ornate_btn("FIM DE TURNO", 16)
+	endb.custom_minimum_size = Vector2(200, 66)
 	endb.pressed.connect(_on_end_turn)
 	if not _has_affordable_card():
 		_pulse(endb)        # brilha quando não há mais o que fazer
