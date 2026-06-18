@@ -77,6 +77,9 @@ func _run() -> void:
 	main._show_event()
 	await process_frame
 	print("  EventScreen: OK")
+	main._show_shop()
+	await process_frame
+	print("  ShopScreen: OK (ouro %d, baralho %d)" % [gs.gold, gs.deck.size()])
 	main._show_map()
 	await process_frame
 	print("  MapScreen: OK")

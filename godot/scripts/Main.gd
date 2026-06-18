@@ -6,6 +6,7 @@ const MapScreen = preload("res://scripts/MapScreen.gd")
 const MatchScreen = preload("res://scripts/MatchScreen.gd")
 const RelicScreen = preload("res://scripts/RelicScreen.gd")
 const EventScreen = preload("res://scripts/EventScreen.gd")
+const ShopScreen = preload("res://scripts/ShopScreen.gd")
 
 var current_screen: Control = null
 
@@ -154,10 +155,9 @@ func _on_event_done(needs_relic: bool) -> void:
 		_show_map()
 
 func _show_shop() -> void:
-	# MVP: loja dá 5 ouro e carta aleatória de ataque
-	GameState.gold += 5
-	var atk_cards := ["passe","drible","lancamento","visao","finaliza","cruzamento","meialua"]
-	GameState.add_card(atk_cards[randi() % atk_cards.size()])
+	_switch_to(ShopScreen.new(), {"shop_done": _on_shop_done})
+
+func _on_shop_done() -> void:
 	_show_map()
 
 # ==========================================================================

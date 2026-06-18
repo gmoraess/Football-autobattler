@@ -16,6 +16,8 @@ func _initialize() -> void:
 		"res://scripts/Main.gd",
 		"res://scripts/Cards.gd",
 		"res://scripts/MatchEngine.gd",
+		"res://scripts/ShopScreen.gd",
+		"res://scripts/Sfx.gd",
 	]
 	for path in scripts:
 		var s = load(path)

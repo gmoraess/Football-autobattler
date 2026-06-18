@@ -1,6 +1,7 @@
 extends Node
 ## Singleton autoload — estado persistente da corrida roguelike.
 ## Acesso: GameState.beast, GameState.deck, GameState.relics, etc.
+const Cards = preload("res://scripts/Cards.gd")
 
 # ==========================================================================
 #  DADOS ESTÁTICOS
@@ -338,3 +339,52 @@ func get_match_mods() -> Dictionary:
 
 func add_card(card_id: String) -> void:
 	deck.append(card_id)
+
+# ==========================================================================
+#  LOJA
+# ==========================================================================
+
+func card_price(id: String) -> int:
+	var cost: int = Cards.ALL.get(id, {}).get("cost", 1)
+	return 10 + cost * 8                      # 1→18 · 2→26 · 3→34
+
+func relic_price() -> int:
+	return 35
+
+func remove_price() -> int:
+	return 25
+
+## n cartas compráveis aleatórias (do catálogo completo).
+func shop_card_offers(n: int = 3) -> Array:
+	var ids: Array = Cards.ALL.keys()
+	ids.shuffle()
+	return ids.slice(0, mini(n, ids.size()))
+
+func buy_card(id: String) -> bool:
+	var p := card_price(id)
+	if gold < p: return false
+	gold -= p
+	add_card(id)
+	return true
+
+func buy_relic(id: String) -> bool:
+	if gold < relic_price() or relics.has(id): return false
+	gold -= relic_price()
+	add_relic(id)
+	return true
+
+func remove_card(id: String) -> bool:
+	if gold < remove_price(): return false
+	var idx := deck.find(id)
+	if idx == -1: return false
+	gold -= remove_price()
+	deck.remove_at(idx)
+	return true
+
+## Contagem do baralho por tipo (con/fin/des/def) — pra "ler" a build.
+func deck_summary() -> Dictionary:
+	var s := {"con": 0, "fin": 0, "des": 0, "def": 0}
+	for id in deck:
+		var t: String = Cards.ALL.get(id, {}).get("type", "con")
+		s[t] = s.get(t, 0) + 1
+	return s
