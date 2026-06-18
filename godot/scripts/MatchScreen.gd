@@ -796,6 +796,7 @@ func _on_card(idx: int, btn: Button) -> void:
 	if engine.busy: return
 	if idx >= engine.hand.size(): return
 	if Cards.ALL[engine.hand[idx]]["cost"] > engine.energy: return
+	Sfx.play(Sfx.card)
 	engine.busy = true
 	# anima a carta jogada: pop + sobe + encolhe (vai pro "descarte")
 	btn.z_index = 10
@@ -909,6 +910,7 @@ func _shot_choreo(e: Dictionary) -> void:
 	var by: String = e["by"]
 	var result: String = e.get("result", "")
 	_lunge(_beast_node.get(by), by)
+	Sfx.play(Sfx.charge)
 	await _rt(0.1)
 	Engine.time_scale = 0.5          # câmera lenta (menos extrema = mais rápido)
 	await _fireball(by)
@@ -932,6 +934,7 @@ func _fireball(by: String) -> void:
 	var ball := _make_ball()
 	layer.add_child(ball)
 	ball.position = Vector2(start_x, y)
+	Sfx.play(Sfx.kick, 0.0)
 	# rastro de fogo (aparece escalonado conforme a bola passa)
 	for i in 7:
 		var f := float(i + 1) / 8.0
@@ -986,6 +989,7 @@ func _make_glow(d: int, col: Color) -> Control:
 	return p
 
 func _goal_burst() -> void:
+	Sfx.play(Sfx.goal, 0.0)
 	_screen_shake(11.0, 0.45)
 	_vignette_flash(Color(1.0, 0.82, 0.35), 0.4)
 	var t := UIHelpers.tlbl("G O O O L !", 60, UIHelpers.GOLD2)
@@ -1010,6 +1014,7 @@ func _goal_burst() -> void:
 	tw.tween_callback(t.queue_free)
 
 func _save_popup() -> void:
+	Sfx.play(Sfx.save)
 	_screen_shake(5.0, 0.25)
 	_toast("🧤 DEFENDEU!", Color("86d8ff"))
 

@@ -20,6 +20,7 @@ window/stretch/aspect="keep"
 [autoload]
 
 GameState="*res://scripts/GameState.gd"
+Sfx="*res://scripts/Sfx.gd"
 
 [rendering]
 
