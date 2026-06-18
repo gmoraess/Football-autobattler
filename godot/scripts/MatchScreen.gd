@@ -19,6 +19,8 @@ var _prev_score := {"home": 0, "away": 0}
 var _fresh_hand := true      # anima a entrada da mão (compra) neste render
 var _beast_node := {"home": null, "away": null}   # refs visuais das feras (reações)
 var _hints: Dictionary = {"home": {}, "away": {}}  # prévia do que vai disparar no turno
+var _bars_node := {"home": null, "away": null}     # colunas de barras (p/ recuar na resolução)
+var _bottom_node: Control = null                   # faixa inferior (mão) — recua na resolução
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -137,7 +139,8 @@ func render() -> void:
 	var mid := _arena_row()
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(mid)
-	col.add_child(_bottom())
+	_bottom_node = _bottom()
+	col.add_child(_bottom_node)
 
 	_sync_prev()        # depois de montar, o "anterior" passa a ser o estado atual
 	_fresh_hand = false
@@ -413,6 +416,7 @@ func _bars_col(side: String) -> Control:
 	v.custom_minimum_size = Vector2(248, 0)
 	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 6)
+	_bars_node[side] = v
 	var has := engine.possession == side
 	v.add_child(_bar(side, "F", "FINALIZAÇÃO", "Encher → chuta ao gol", has))
 	v.add_child(_bar(side, "C", "CONTROLE DE BOLA", "Mantém a posse", has))
@@ -816,6 +820,8 @@ func _on_end_turn() -> void:
 	engine.end_turn()
 	var events: Array = engine.turn_events.duplicate(true)
 	render()
+	if not events.is_empty():
+		_recede_planning()      # ESTADO B: mão/painéis recuam, o palco assume
 	await _play_turn_choreo(events)
 	Engine.time_scale = 1.0     # garante restauração
 	engine.busy = false
@@ -885,6 +891,14 @@ func _toast(msg: String, col: Color) -> void:
 # ==========================================================================
 #  COREOGRAFIA DO TURNO (Parte 2 — drama do campo)
 # ==========================================================================
+## ESTADO B (resolução): mão e painéis de barra recuam (fade) pra focar o lance.
+## Restauram sozinhos no próximo render (início do turno).
+func _recede_planning() -> void:
+	for nd in [_bottom_node, _bars_node.get("home"), _bars_node.get("away")]:
+		if nd != null and is_instance_valid(nd):
+			var tw := create_tween()
+			tw.tween_property(nd, "modulate:a", 0.22, 0.22)
+
 func _opp_side(s: String) -> String:
 	return "away" if s == "home" else "home"
 
