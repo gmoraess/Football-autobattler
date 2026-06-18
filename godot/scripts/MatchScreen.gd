@@ -18,6 +18,7 @@ var _prev_energy := 0
 var _prev_score := {"home": 0, "away": 0}
 var _fresh_hand := true      # anima a entrada da mão (compra) neste render
 var _beast_node := {"home": null, "away": null}   # refs visuais das feras (reações)
+var _hints: Dictionary = {"home": {}, "away": {}}  # prévia do que vai disparar no turno
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -132,6 +133,7 @@ func render() -> void:
 
 	col.add_child(_scoreboard())
 	col.add_child(_field_strip())
+	_hints = _predict()
 	var mid := _arena_row()
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(mid)
@@ -376,6 +378,36 @@ func _arena_row() -> Control:
 	h.add_child(_bars_col("away"))
 	return h
 
+## Prevê o que vai disparar no turno (usa a intenção já conhecida do inimigo).
+## Resolve confusão de timing sem mudar regra (P1/§2.4 do plano).
+func _predict() -> Dictionary:
+	var h := {"home": {}, "away": {}}
+	var p: String = engine.possession
+	# barras do inimigo APÓS a jogada planejada dele
+	var eb := {"F": engine.bars["away"]["F"], "C": engine.bars["away"]["C"],
+			   "D": engine.bars["away"]["D"], "E": engine.bars["away"]["E"]}
+	for c in engine.enemy_plan.get("cards", []):
+		eb["F"] = mini(MatchEngine.FMAXCAP, eb["F"] + c.get("F", 0))
+		eb["C"] = mini(MatchEngine.CD_CAP, eb["C"] + c.get("C", 0))
+		eb["D"] = mini(MatchEngine.CD_CAP, eb["D"] + c.get("D", 0))
+		eb["E"] = mini(MatchEngine.FMAXCAP, eb["E"] + c.get("E", 0))
+	var hc: int = engine.bars["home"]["C"]
+	var hd: int = engine.bars["home"]["D"]
+	var hf: int = engine.bars["home"]["F"]
+	if p == "home":
+		if eb["D"] > 0 and eb["D"] >= hc:
+			h["home"]["C"] = "lose"
+		else:
+			h["home"]["C"] = "safe"
+			if hf >= engine.bar_max["home"]["F"]:
+				h["home"]["F"] = "ready"
+	else:
+		if hd > 0 and hd >= eb["C"]:
+			h["home"]["D"] = "steal"
+		if eb["F"] >= engine.bar_max["away"]["F"]:
+			h["away"]["F"] = "ready"
+	return h
+
 func _bars_col(side: String) -> Control:
 	var v := VBoxContainer.new()
 	v.custom_minimum_size = Vector2(248, 0)
@@ -395,10 +427,18 @@ func _bar(side: String, key: String, name: String, desc: String, active: bool) -
 	var prev: float = _prev_bars[side][key]
 
 	var mirror := side == "away"
+	var hint: String = _hints.get(side, {}).get(key, "")
+	var border: Color = UIHelpers.GOLD if active else Color(0.42, 0.31, 0.14, 0.45)
+	match hint:
+		"ready": border = UIHelpers.GOLD2
+		"steal": border = Color("ff9a4a")
+		"lose":  border = Color("ff5a5a")
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel",
-		UIHelpers.sbf(Color(0.05, 0.035, 0.02, 0.5), UIHelpers.GOLD if active else Color(0.42, 0.31, 0.14, 0.45), 1, 8, 9, 6))
+		UIHelpers.sbf(Color(0.05, 0.035, 0.02, 0.5), border, 2 if hint != "" and hint != "safe" else 1, 8, 9, 6))
 	if not active: box.modulate = Color(1, 1, 1, 0.62)
+	if hint == "ready" or hint == "steal":
+		_pulse(box)
 	var v := VBoxContainer.new(); v.add_theme_constant_override("separation", 3); box.add_child(v)
 	var hd := HBoxContainer.new(); hd.add_theme_constant_override("separation", 7)
 	var icon_sq := _stat_icon_box(key)
@@ -444,7 +484,14 @@ func _bar(side: String, key: String, name: String, desc: String, active: bool) -
 		track.add_child(d)
 	v.add_child(track)
 
-	var dl := UIHelpers.lbl(desc, 8, UIHelpers.RUNE2)
+	var status := desc
+	var status_col := UIHelpers.RUNE2
+	match hint:
+		"ready": status = "🥅 PRONTA — vai chutar!"; status_col = UIHelpers.GOLD2
+		"steal": status = "✋ vai roubar a bola!";    status_col = Color("ffb06a")
+		"lose":  status = "⚠ vai perder a bola!";     status_col = Color("ff8f8f")
+		"safe":  status = "✓ posse segura";           status_col = Color("8fdf9f")
+	var dl := UIHelpers.lbl(status, 8, status_col)
 	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if mirror else HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(dl)
